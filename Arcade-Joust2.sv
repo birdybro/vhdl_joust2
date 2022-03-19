@@ -308,7 +308,7 @@ always @(posedge clk_40) begin
 	ce_pix <= !div;
 end
 
-arcade_video #(260,9) arcade_video
+arcade_video #(260,12) arcade_video
 (
 	.*,
 
@@ -367,16 +367,5 @@ williams2 williams2
 
 	.dbg_out() // [31:0]
 );
-
-assign CLK_VIDEO = clk_sys;
-assign CE_PIXEL = ce_pix;
-
-assign VGA_DE = ~(HBlank | VBlank);
-assign VGA_HS = HSync;
-assign VGA_VS = VSync;
-assign VGA_G  = (!col || col == 2) ? video : 8'd0;
-assign VGA_R  = (!col || col == 1) ? video : 8'd0;
-assign VGA_B  = (!col || col == 3) ? video : 8'd0;
-
 
 endmodule
