@@ -195,6 +195,8 @@ assign BUTTONS = 0;
 
 //////////////////////////////////////////////////////////////////
 
+assign LED_USER = ioctl_download;
+
 wire [1:0] ar = status[9:8];
 
 assign VIDEO_ARX = (!ar) ? 12'd4 : (ar - 1'd1);
@@ -205,8 +207,7 @@ localparam CONF_STR = {
 	"MyCore;;",
 	"-;",
 	"O89,Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
-	"O2,TV Mode,NTSC,PAL;",
-	"O34,Noise,White,Red,Green,Blue;",
+	"O35,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
 	"-;",
 	"P1,Test Page 1;",
 	"P1-;",
@@ -230,24 +231,51 @@ localparam CONF_STR = {
 };
 
 wire forced_scandoubler;
+wire        direct_video;
+
+wire        ioctl_download;
+wire        ioctl_upload;
+wire        ioctl_upload_req;
+wire        ioctl_wr;
+wire [24:0] ioctl_addr;
+wire  [7:0] ioctl_dout;
+wire  [7:0] ioctl_din;
+wire  [7:0] ioctl_index;
+wire        ioctl_wait;
+
 wire  [1:0] buttons;
 wire [31:0] status;
 wire [10:0] ps2_key;
+
+wire [15:0] joystick_0,joystick_1;
+wire [15:0] joy = joystick_0 | joystick_1;
+
+wire [21:0] gamma_bus;
 
 hps_io #(.CONF_STR(CONF_STR)) hps_io
 (
 	.clk_sys(clk_sys),
 	.HPS_BUS(HPS_BUS),
-	.EXT_BUS(),
-	.gamma_bus(),
-
-	.forced_scandoubler(forced_scandoubler),
 
 	.buttons(buttons),
 	.status(status),
-	.status_menumask({status[5]}),
-	
-	.ps2_key(ps2_key)
+	.status_menumask(direct_video),
+	.forced_scandoubler(forced_scandoubler),
+	.gamma_bus(gamma_bus),
+	.direct_video(direct_video),
+
+	.ioctl_download(ioctl_download),
+	.ioctl_upload(ioctl_upload),
+	.ioctl_upload_req(ioctl_upload_req),
+	.ioctl_wr(ioctl_wr),
+	.ioctl_addr(ioctl_addr),
+	.ioctl_dout(ioctl_dout),
+	.ioctl_din(ioctl_din),
+	.ioctl_index(ioctl_index),
+	.ioctl_wait(ioctl_wait),
+
+	.joystick_0(joystick_0),
+	.joystick_1(joystick_1)
 );
 
 ///////////////////////   CLOCKS   ///////////////////////////////
@@ -264,31 +292,52 @@ wire reset = RESET | status[0] | buttons[1];
 
 //////////////////////////////////////////////////////////////////
 
-wire [1:0] col = status[4:3];
 
-wire HBlank;
-wire HSync;
-wire VBlank;
-wire VSync;
-wire ce_pix;
-wire [7:0] video;
+wire hblank, vblank;
+wire hs, vs;
+wire r;
+wire g;
+wire b;
 
-mycore mycore
+williams2 williams2
 (
-	.clk(clk_sys),
+	.clock_12(),
 	.reset(reset),
+
+	.rom_addr(), // [16:0]
+	.rom_do(),   // [7:0]
+	.rom_rd(),
+
+	.video_r(r), // [3:0]
+	.video_g(g), // [3:0]
+	.video_b(b), // [3:0]
+	.video_i(),  // [3:0]
+	.video_csync(),
+	.video_blankn(),
+	.video_hs(hs),
+	.video_vs(vs),
+
+	.audio_out(audio), // [7:0]
+
+	.btn_auto_up(),
+	.btn_advance(),
+	.btn_high_score_reset(),
+	.btn_coin(),
+	.btn_start_1(),
+	.btn_start_2(),
+
+	.btn_left_1(),
+	.btn_right_1(),
+	.btn_trigger1_1(),
 	
-	.pal(status[2]),
-	.scandouble(forced_scandoubler),
+	.btn_left_2(),
+	.btn_right_2(),
+	.btn_trigger1_2(),
 
-	.ce_pix(ce_pix),
+	.sw_coktail_table(),
+	.seven_seg(), // [7:0]
 
-	.HBlank(HBlank),
-	.HSync(HSync),
-	.VBlank(VBlank),
-	.VSync(VSync),
-
-	.video(video)
+	.dbg_out() // [31:0]
 );
 
 assign CLK_VIDEO = clk_sys;
@@ -301,8 +350,5 @@ assign VGA_G  = (!col || col == 2) ? video : 8'd0;
 assign VGA_R  = (!col || col == 1) ? video : 8'd0;
 assign VGA_B  = (!col || col == 3) ? video : 8'd0;
 
-reg  [26:0] act_cnt;
-always @(posedge clk_sys) act_cnt <= act_cnt + 1'd1; 
-assign LED_USER    = act_cnt[26]  ? act_cnt[25:18]  > act_cnt[7:0]  : act_cnt[25:18]  <= act_cnt[7:0];
 
 endmodule
