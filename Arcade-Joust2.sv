@@ -185,8 +185,6 @@ assign VGA_SCALER = 0;
 assign HDMI_FREEZE = 0;
 
 assign AUDIO_S = 0;
-assign AUDIO_L = 0;
-assign AUDIO_R = 0;
 assign AUDIO_MIX = 0;
 
 assign LED_DISK = 0;
@@ -209,24 +207,9 @@ localparam CONF_STR = {
 	"O89,Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
 	"O35,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
 	"-;",
-	"P1,Test Page 1;",
-	"P1-;",
-	"P1-, -= Options in page 1 =-;",
-	"P1-;",
-	"P1O5,Option 1-1,Off,On;",
-	"d0P1F1,BIN;",
-	"H0P1O6,Option 1-2,Off,On;",
-	"-;",
-	"P2,Test Page 2;",
-	"P2-;",
-	"P2-, -= Options in page 2 =-;",
-	"P2-;",
-	"P2S0,DSK;",
-	"P2O67,Option 2,1,2,3,4;",
-	"-;",
-	"-;",
 	"T0,Reset;",
-	"R0,Reset and close OSD;",
+	"J1,Flap,Start 1P,Start 2P,Coin;",
+	"jn,A,Start,Select,R;",
 	"V,v",`BUILD_DATE 
 };
 
@@ -237,7 +220,7 @@ wire        ioctl_download;
 wire        ioctl_upload;
 wire        ioctl_upload_req;
 wire        ioctl_wr;
-wire [24:0] ioctl_addr;
+wire [16:0] ioctl_addr;
 wire  [7:0] ioctl_dout;
 wire  [7:0] ioctl_din;
 wire  [7:0] ioctl_index;
@@ -281,32 +264,77 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
 ///////////////////////   CLOCKS   ///////////////////////////////
 
 wire clk_sys;
+wire pll_locked;
+wire clk_48,clk_12;
+assign clk_sys=clk_48;
+
 pll pll
 (
 	.refclk(CLK_50M),
 	.rst(0),
-	.outclk_0(clk_sys)
+	.outclk_0(clk_48),
+	.outclk_1(clk_12),
+	.locked(pll_locked)
 );
 
 wire reset = RESET | status[0] | buttons[1];
 
 //////////////////////////////////////////////////////////////////
 
+wire m_left_1  = joy[1];
+wire m_right_1 = joy[0];
+wire m_flap_1  = joy[4];
+
+wire m_left_2  = joy[1];
+wire m_right_2 = joy[0];
+wire m_flap_2  = joy[4];
+
+wire m_start1  = joy[5];
+wire m_start2  = joy[6];
+wire m_coin    = joy[7];
+//wire m_pause  = joy[8];
 
 wire hblank, vblank;
 wire hs, vs;
-wire r;
-wire g;
-wire b;
+wire [3:0] r;
+wire [3:0] g;
+wire [3:0] b;
+
+reg ce_pix;
+always @(posedge clk_40) begin
+	reg [2:0] div;
+
+	div <= div + 1'd1;
+	ce_pix <= !div;
+end
+
+arcade_video #(260,9) arcade_video
+(
+	.*,
+
+	.clk_video(clk_48),
+	.RGB_in({r,r,r,r,g,g,g,g,b,b,b,b}),
+
+	.HBlank(hblank),
+	.VBlank(vblank),
+	.HSync(hs),
+	.VSync(vs),
+
+	.fx(status[5:3])
+);
+
+wire [7:0] audio;
+assign AUDIO_L = audio;
+assign AUDIO_R = AUDIO_L;
 
 williams2 williams2
 (
-	.clock_12(),
+	.clock_12(clk_12),
 	.reset(reset),
 
-	.rom_addr(), // [16:0]
-	.rom_do(),   // [7:0]
-	.rom_rd(),
+	.rom_addr(ioctl_addr), // [16:0]
+	.rom_do(ioctl_dout), // [7:0]
+	.rom_rd(ioctl_download),
 
 	.video_r(r), // [3:0]
 	.video_g(g), // [3:0]
@@ -322,17 +350,17 @@ williams2 williams2
 	.btn_auto_up(),
 	.btn_advance(),
 	.btn_high_score_reset(),
-	.btn_coin(),
-	.btn_start_1(),
-	.btn_start_2(),
+	.btn_coin(m_coin),
+	.btn_start_1(m_start1),
+	.btn_start_2(m_start2),
 
-	.btn_left_1(),
-	.btn_right_1(),
-	.btn_trigger1_1(),
+	.btn_left_1(m_left_1),
+	.btn_right_1(m_right_1),
+	.btn_trigger1_1(m_flap_1),
 	
-	.btn_left_2(),
-	.btn_right_2(),
-	.btn_trigger1_2(),
+	.btn_left_2(m_left_2),
+	.btn_right_2(m_right_2),
+	.btn_trigger1_2(m_flap_2),
 
 	.sw_coktail_table(),
 	.seven_seg(), // [7:0]
