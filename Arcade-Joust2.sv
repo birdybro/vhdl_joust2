@@ -202,12 +202,12 @@ assign VIDEO_ARY = (!ar) ? 12'd3 : 12'd0;
 
 `include "build_id.v" 
 localparam CONF_STR = {
-	"MyCore;;",
+	"A.JOUST2;;",
 	"-;",
 	"O89,Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
 	"O35,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
 	"-;",
-	"T0,Reset;",
+	"R0,Reset;",
 	"J1,Flap,Start 1P,Start 2P,Coin;",
 	"jn,A,Start,Select,R;",
 	"V,v",`BUILD_DATE 
