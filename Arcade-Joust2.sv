@@ -301,7 +301,7 @@ wire [3:0] g;
 wire [3:0] b;
 
 reg ce_pix;
-always @(posedge clk_40) begin
+always @(posedge clk_48) begin
 	reg [2:0] div;
 
 	div <= div + 1'd1;
