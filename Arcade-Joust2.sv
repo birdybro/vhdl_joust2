@@ -308,7 +308,6 @@ end
 
 wire no_rotate = status[2] | direct_video;
 wire rotate_ccw = 0;
-screen_rotate screen_rotate (.*);
 
 arcade_video #(276,12) arcade_video
 (
@@ -326,7 +325,7 @@ arcade_video #(276,12) arcade_video
 );
 
 wire [7:0] audio;
-assign AUDIO_L = 8'b0 : audio;
+assign AUDIO_L = audio;
 assign AUDIO_R = AUDIO_L;
 assign AUDIO_S = 0;
 
