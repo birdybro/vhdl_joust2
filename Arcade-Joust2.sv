@@ -298,35 +298,10 @@ wire hblank, vblank;
 wire hs, vs;
 wire [3:0] r,g,b;
 
-reg ce_pix;
-always @(posedge clk_48) begin
-	reg [2:0] div;
-
-	div <= div + 1'd1;
-	ce_pix <= !div;
-end
-
-arcade_video #(276,12,1) arcade_video
-(
-	.*,
-
-	.clk_video(clk_48),
-	.RGB_in(rgb_out),
-
-	.HBlank(hblank),
-	.VBlank(vblank),
-	.HSync(hs),
-	.VSync(vs),
-
-	.fx(status[5:3])
-);
-
 wire [7:0] audio;
 assign AUDIO_L = audio;
 assign AUDIO_R = AUDIO_L;
 assign AUDIO_S = 0;
-
-wire blankn = ~(hblank | vblank);
 
 williams2 williams2
 (
@@ -342,7 +317,7 @@ williams2 williams2
 	.video_b(b), // [3:0]
 	.video_i(),  // [3:0]
 	.video_csync(),
-	.video_blankn(blankn),
+	.video_blankn(),
 	.video_hs(hs),
 	.video_vs(vs),
 
