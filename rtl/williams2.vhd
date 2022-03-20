@@ -39,1168 +39,1093 @@
 -- see joust2 settings whithin joust2_cmos_ram.vhd
 ---------------------------------------------------------------------------------
 
-LIBRARY ieee;
-USE ieee.std_logic_1164.ALL;
-USE ieee.std_logic_unsigned.ALL;
-USE ieee.numeric_std.ALL;
-
-ENTITY williams2 IS
-	PORT (
-		clock_12 : IN STD_LOGIC;
-		reset : IN STD_LOGIC;
-
-		rom_addr : OUT STD_LOGIC_VECTOR(16 DOWNTO 0);
-		rom_do : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
-		rom_rd : OUT STD_LOGIC;
-
-		-- tv15Khz_mode : in std_logic;
-		video_r : OUT STD_LOGIC_VECTOR(3 DOWNTO 0);
-		video_g : OUT STD_LOGIC_VECTOR(3 DOWNTO 0);
-		video_b : OUT STD_LOGIC_VECTOR(3 DOWNTO 0);
-		video_i : OUT STD_LOGIC_VECTOR(3 DOWNTO 0);
-		video_csync : OUT STD_LOGIC;
-		video_blankn : OUT STD_LOGIC;
-		video_hs : OUT STD_LOGIC;
-		video_vs : OUT STD_LOGIC;
-
-		audio_out : OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
-
-		btn_auto_up : IN STD_LOGIC;
-		btn_advance : IN STD_LOGIC;
-		btn_high_score_reset : IN STD_LOGIC;
-		btn_coin : IN STD_LOGIC;
-		btn_start_1 : IN STD_LOGIC;
-		btn_start_2 : IN STD_LOGIC;
-
-		btn_left_1 : IN STD_LOGIC;
-		btn_right_1 : IN STD_LOGIC;
-		btn_trigger1_1 : IN STD_LOGIC;
-
-		btn_left_2 : IN STD_LOGIC;
-		btn_right_2 : IN STD_LOGIC;
-		btn_trigger1_2 : IN STD_LOGIC;
-
-		sw_coktail_table : IN STD_LOGIC;
-		seven_seg : OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
-
-		dbg_out : OUT STD_LOGIC_VECTOR(31 DOWNTO 0)
-
-	);
-END williams2;
-
-ARCHITECTURE struct OF williams2 IS
-
-	SIGNAL en_pixel : STD_LOGIC := '0';
-	SIGNAL video_access : STD_LOGIC;
-	SIGNAL graph_access : STD_LOGIC;
-
-	SIGNAL color_cs : STD_LOGIC;
-	SIGNAL rom_bank_cs : STD_LOGIC;
-
-	SIGNAL en_cpu : STD_LOGIC := '0';
-	SIGNAL cpu_addr : STD_LOGIC_VECTOR(15 DOWNTO 0);
-	SIGNAL cpu_di : STD_LOGIC_VECTOR(7 DOWNTO 0);
-	SIGNAL cpu_do : STD_LOGIC_VECTOR(7 DOWNTO 0);
-	SIGNAL cpu_rw_n : STD_LOGIC;
-	SIGNAL cpu_irq : STD_LOGIC;
-
-	SIGNAL addr_bus : STD_LOGIC_VECTOR(15 DOWNTO 0);
-	SIGNAL data_bus_high : STD_LOGIC_VECTOR(7 DOWNTO 0);
-	SIGNAL data_bus_low : STD_LOGIC_VECTOR(7 DOWNTO 0);
-	SIGNAL data_bus : STD_LOGIC_VECTOR(7 DOWNTO 0);
-	SIGNAL we_bus : STD_LOGIC;
-
-	SIGNAL decod_addr : STD_LOGIC_VECTOR(8 DOWNTO 0);
-	SIGNAL decod_do : STD_LOGIC_VECTOR(7 DOWNTO 0);
-
-	SIGNAL vram_addr : STD_LOGIC_VECTOR(13 DOWNTO 0);
-	SIGNAL vram_cs : STD_LOGIC;
-	SIGNAL vram_we : STD_LOGIC;
-	SIGNAL vram_l0_do : STD_LOGIC_VECTOR(3 DOWNTO 0);
-	SIGNAL vram_l0_we : STD_LOGIC;
-	SIGNAL vram_h0_do : STD_LOGIC_VECTOR(3 DOWNTO 0);
-	SIGNAL vram_h0_we : STD_LOGIC;
-	SIGNAL vram_l1_do : STD_LOGIC_VECTOR(3 DOWNTO 0);
-	SIGNAL vram_l1_we : STD_LOGIC;
-	SIGNAL vram_h1_do : STD_LOGIC_VECTOR(3 DOWNTO 0);
-	SIGNAL vram_h1_we : STD_LOGIC;
-	SIGNAL vram_l2_do : STD_LOGIC_VECTOR(3 DOWNTO 0);
-	SIGNAL vram_l2_we : STD_LOGIC;
-	SIGNAL vram_h2_do : STD_LOGIC_VECTOR(3 DOWNTO 0);
-	SIGNAL vram_h2_we : STD_LOGIC;
-
-	SIGNAL rom_bank_a_do : STD_LOGIC_VECTOR(7 DOWNTO 0);
-	SIGNAL rom_bank_b_do : STD_LOGIC_VECTOR(7 DOWNTO 0);
-	SIGNAL rom_bank_c_do : STD_LOGIC_VECTOR(7 DOWNTO 0);
-	SIGNAL rom_bank_d_do : STD_LOGIC_VECTOR(7 DOWNTO 0);
-
-	SIGNAL rom_prog1_do : STD_LOGIC_VECTOR(7 DOWNTO 0);
-	SIGNAL rom_prog2_do : STD_LOGIC_VECTOR(7 DOWNTO 0);
-
-	-- signal sram0_we        : std_logic;
-	-- signal sram0_do        : std_logic_vector( 7 downto 0);
-
-	SIGNAL page : STD_LOGIC_VECTOR(2 DOWNTO 0);
-	SIGNAL page_cs : STD_LOGIC;
-
-	SIGNAL seven_seg_cs : STD_LOGIC;
-
-	SIGNAL flip : STD_LOGIC;
-	SIGNAL flip_cs : STD_LOGIC;
-	SIGNAL flip_bg : STD_LOGIC;
-	SIGNAL flip_bg_a : STD_LOGIC;
-
-	SIGNAL dma_inh_n : STD_LOGIC;
-	SIGNAL dma_inh_cs : STD_LOGIC;
-
-	SIGNAL cmos_do : STD_LOGIC_VECTOR(3 DOWNTO 0);
-	SIGNAL cmos_we : STD_LOGIC;
-
-	SIGNAL palette_addr : STD_LOGIC_VECTOR(9 DOWNTO 0);
-	SIGNAL palette_lo_we : STD_LOGIC;
-	SIGNAL palette_lo_do : STD_LOGIC_VECTOR(7 DOWNTO 0);
-	SIGNAL palette_hi_we : STD_LOGIC;
-	SIGNAL palette_hi_do : STD_LOGIC_VECTOR(7 DOWNTO 0);
-
-	SIGNAL fg_color_bank : STD_LOGIC_VECTOR(5 DOWNTO 0);
-	SIGNAL fg_color_bank_cs : STD_LOGIC;
-	SIGNAL bg_color_bank : STD_LOGIC_VECTOR(5 DOWNTO 0);
-	SIGNAL bg_color_bank_cs : STD_LOGIC;
-
-	SIGNAL map_we : STD_LOGIC;
-	SIGNAL map_addr : STD_LOGIC_VECTOR(10 DOWNTO 0);
-	SIGNAL map_do : STD_LOGIC_VECTOR(7 DOWNTO 0);
-	SIGNAL map_x : STD_LOGIC_VECTOR(8 DOWNTO 0);
-	SIGNAL xscroll_high_cs : STD_LOGIC;
-	SIGNAL xscroll_low_cs : STD_LOGIC;
-	SIGNAL xscroll : STD_LOGIC_VECTOR(11 DOWNTO 0);
-
-	SIGNAL graph_addr : STD_LOGIC_VECTOR(13 DOWNTO 0);
-	SIGNAL graph1_do : STD_LOGIC_VECTOR(7 DOWNTO 0);
-	SIGNAL graph2_do : STD_LOGIC_VECTOR(7 DOWNTO 0);
-	SIGNAL graph3_do : STD_LOGIC_VECTOR(7 DOWNTO 0);
-
-	SIGNAL pias_clock : STD_LOGIC;
-
-	SIGNAL pia_io1_cs : STD_LOGIC;
-	SIGNAL pia_io1_do : STD_LOGIC_VECTOR(7 DOWNTO 0);
-	SIGNAL pia_io1_pa_i : STD_LOGIC_VECTOR(7 DOWNTO 0);
-	SIGNAL pia_io1_pb_i : STD_LOGIC_VECTOR(7 DOWNTO 0);
-	SIGNAL pia_io1_irqa : STD_LOGIC;
-	SIGNAL pia_io1_irqb : STD_LOGIC;
-	SIGNAL pia_io1_ca2_o : STD_LOGIC;
-
-	SIGNAL pia_io2_cs : STD_LOGIC;
-	SIGNAL pia_io2_do : STD_LOGIC_VECTOR(7 DOWNTO 0);
-	SIGNAL pia_io2_irqa : STD_LOGIC;
-	SIGNAL pia_io2_irqb : STD_LOGIC;
-	SIGNAL pia_io2_pa_i : STD_LOGIC_VECTOR(7 DOWNTO 0);
-
-	SIGNAL vcnt_240 : STD_LOGIC;
-	SIGNAL cnt_4ms : STD_LOGIC;
-
-	SIGNAL pixel_cnt : STD_LOGIC_VECTOR(2 DOWNTO 0) := "000";
-	SIGNAL hcnt : STD_LOGIC_VECTOR(5 DOWNTO 0) := "000000";
-	SIGNAL vcnt : STD_LOGIC_VECTOR(8 DOWNTO 0) := "000000000";
-
-	SIGNAL fg_pixels : STD_LOGIC_VECTOR(23 DOWNTO 0);
-	SIGNAL fg_pixels_0 : STD_LOGIC_VECTOR(3 DOWNTO 0);
-	SIGNAL bg_pixels : STD_LOGIC_VECTOR(23 DOWNTO 0);
-	SIGNAL bg_pixels_0 : STD_LOGIC_VECTOR(3 DOWNTO 0);
-	SIGNAL bg_pixels_1 : STD_LOGIC_VECTOR(3 DOWNTO 0);
-	SIGNAL bg_pixels_2 : STD_LOGIC_VECTOR(3 DOWNTO 0);
-	SIGNAL bg_pixels_3 : STD_LOGIC_VECTOR(3 DOWNTO 0);
-	SIGNAL bg_pixels_4 : STD_LOGIC_VECTOR(3 DOWNTO 0);
-	SIGNAL bg_pixels_5 : STD_LOGIC_VECTOR(3 DOWNTO 0);
-	SIGNAL bg_pixels_6 : STD_LOGIC_VECTOR(3 DOWNTO 0);
-	SIGNAL bg_pixels_7 : STD_LOGIC_VECTOR(3 DOWNTO 0);
-	SIGNAL bg_pixels_8 : STD_LOGIC_VECTOR(3 DOWNTO 0);
-	SIGNAL bg_pixels_9 : STD_LOGIC_VECTOR(3 DOWNTO 0);
-	SIGNAL bg_pixels_10 : STD_LOGIC_VECTOR(3 DOWNTO 0);
-	SIGNAL bg_pixels_shifted : STD_LOGIC_VECTOR(3 DOWNTO 0);
-
-	SIGNAL hsync0, hsync1, hsync2, csync, hblank, vblank : STD_LOGIC;
-
-	SIGNAL blit_cs : STD_LOGIC;
-	SIGNAL blit_has_bus : STD_LOGIC;
-	SIGNAL blit_start : STD_LOGIC;
-	SIGNAL blit_cmd : STD_LOGIC_VECTOR(7 DOWNTO 0);
-	SIGNAL blit_color : STD_LOGIC_VECTOR(7 DOWNTO 0);
-	SIGNAL blit_src : STD_LOGIC_VECTOR(15 DOWNTO 0);
-	SIGNAL blit_dst : STD_LOGIC_VECTOR(15 DOWNTO 0);
-	SIGNAL blit_width : STD_LOGIC_VECTOR(7 DOWNTO 0);
-	SIGNAL blit_height : STD_LOGIC_VECTOR(7 DOWNTO 0);
-
-	SIGNAL blit_go : STD_LOGIC;
-	SIGNAL blit_cur_src : STD_LOGIC_VECTOR(15 DOWNTO 0);
-	SIGNAL blit_cur_dst : STD_LOGIC_VECTOR(15 DOWNTO 0);
-	SIGNAL blit_cur_width : STD_LOGIC_VECTOR(7 DOWNTO 0);
-	SIGNAL blit_cur_height : STD_LOGIC_VECTOR(7 DOWNTO 0);
-	SIGNAL blit_dst_ori : STD_LOGIC_VECTOR(15 DOWNTO 0);
-	SIGNAL blit_src_ori : STD_LOGIC_VECTOR(15 DOWNTO 0);
-
-	SIGNAL blit_rw_n : STD_LOGIC := '1';
-	SIGNAL blit_addr : STD_LOGIC_VECTOR(15 DOWNTO 0);
-	SIGNAL blit_data : STD_LOGIC_VECTOR(7 DOWNTO 0);
-	SIGNAL blit_halt : STD_LOGIC := '0';
-	SIGNAL blit_wr_inh_h : STD_LOGIC := '0';
-	SIGNAL blit_wr_inh_l : STD_LOGIC := '0';
-	SIGNAL right_nibble : STD_LOGIC_VECTOR(3 DOWNTO 0);
-
-	SIGNAL cpu_halt : STD_LOGIC;
-	SIGNAL cpu_ba : STD_LOGIC;
-	SIGNAL cpu_bs : STD_LOGIC;
-
-	-- signal gun_bin_code  : std_logic_vector(5 downto 0);
-	-- signal gun_gray_code : std_logic_vector(5 downto 0);
-
-	SIGNAL sound_select : STD_LOGIC_VECTOR(7 DOWNTO 0);
-	SIGNAL sound_trig : STD_LOGIC;
-	SIGNAL sound_ack : STD_LOGIC;
-
-	SIGNAL sound_cpu_addr : STD_LOGIC_VECTOR(15 DOWNTO 0);
-
-BEGIN
-
-	-- for debug
-	PROCESS (clock_12)
-	BEGIN
-		IF rising_edge(clock_12) THEN
-			--		dbg_out(15 downto 0) <= cpu_addr;
-			dbg_out(15 DOWNTO 0) <= sound_cpu_addr;
-		END IF;
-	END PROCESS;
-
-	-- make pixels counters and cpu clock
-	-- in original hardware cpu clock = 1us = 6pixels
-	-- here one make 2 cpu clock within 1us
-	PROCESS (reset, clock_12)
-	BEGIN
-		IF rising_edge(clock_12) THEN
-
-			en_pixel <= NOT en_pixel;
-			en_cpu <= '0';
-			video_access <= '0';
-			graph_access <= '0';
-			rom_rd <= '0';
-
-			IF pixel_cnt = "000" THEN
-				en_cpu <= '1';
-			END IF;
-			IF pixel_cnt = "001" THEN
-				rom_rd <= '1';
-			END IF;
-			IF pixel_cnt = "011" THEN
-				video_access <= '1';
-			END IF;
-			IF pixel_cnt = "100" THEN
-				graph_access <= '1';
-			END IF;
-
-			IF en_pixel = '1' THEN
-				IF pixel_cnt = "101" THEN
-					pixel_cnt <= "000";
-				ELSE
-					pixel_cnt <= pixel_cnt + '1';
-				END IF;
-
-			END IF;
-
-		END IF;
-	END PROCESS;
-
-	-- make hcnt and vcnt video scanner from pixel clocks and counts
-	-- 
-	--  pixels   |0|1|2|3|4|5|0|1|2|3|4|5|
-	--  hcnt     |     N     |  N+1      | 
-	--
-	--  hcnt [0..63] => 64 x 6 = 384 pixels,  1 pixel is 1us => 1 line is 64us (15.625KHz)
-	--  vcnt [252..255,256..511] => 260 lines, 1 frame is 260 x 64us = 16.640ms (60.1Hz)
-	--
-	PROCESS (reset, clock_12)
-	BEGIN
-		IF reset = '1' THEN
-			hcnt <= "000000";
-			vcnt <= '0' & X"FC";
-		ELSE
-			IF rising_edge(clock_12) THEN
-
-				IF (pixel_cnt = "101") AND (en_pixel = '1') THEN
-					hcnt <= hcnt + '1';
-					IF hcnt = "111101" THEN
-						IF vcnt = '1' & X"FF" THEN
-							vcnt <= '0' & X"FC";
-						ELSE
-							vcnt <= vcnt + '1';
-						END IF;
-					END IF;
-				END IF;
-
-			END IF;
-		END IF;
-	END PROCESS;
-
-	-- mux cpu addr and blitter addr to bus addr
-	blit_has_bus <= '1' WHEN cpu_halt = '1' AND cpu_ba = '1' AND cpu_bs = '1' ELSE
-		'0';
-	addr_bus <= blit_addr WHEN blit_has_bus = '1' ELSE
-		cpu_addr;
-
-	-- decod bus addr to vram addr
-	decod_addr <= addr_bus(15 DOWNTO 13) & '0' & addr_bus(12 DOWNTO 8);
-
-	-- mux bus addr and video scanner to vram addr
-	vram_addr <=
-		addr_bus (7 DOWNTO 0) & decod_do(5 DOWNTO 0) WHEN video_access = '0' ELSE
-		vcnt(7 DOWNTO 0) & hcnt;
-
-	-- mux bus addr and video scanner to map ram addr
-	map_x <= (("000" & (hcnt(5 DOWNTO 0) + 1)) + ('0' & xscroll(10 DOWNTO 3))) XOR (xscroll(11) & x"00");
-	map_addr <=
-		addr_bus(3 DOWNTO 0) & addr_bus(10 DOWNTO 4) WHEN video_access = '0' ELSE
-		vcnt(7 DOWNTO 4) & map_x(8 DOWNTO 2);
-
-	-- bg pixel delay
-	PROCESS (clock_12)
-	BEGIN
-		IF rising_edge(clock_12) THEN
-			IF en_pixel = '0' THEN
-				IF flip_bg = '0' THEN
-					bg_pixels_0 <= bg_pixels(23 DOWNTO 20);
-				ELSE
-					bg_pixels_0 <= bg_pixels(3 DOWNTO 0);
-				END IF;
-				bg_pixels_1 <= bg_pixels_0;
-				bg_pixels_2 <= bg_pixels_1;
-				bg_pixels_3 <= bg_pixels_2;
-				bg_pixels_4 <= bg_pixels_3;
-				bg_pixels_5 <= bg_pixels_4;
-				bg_pixels_6 <= bg_pixels_5;
-				bg_pixels_7 <= bg_pixels_6;
-				bg_pixels_8 <= bg_pixels_7;
-				bg_pixels_9 <= bg_pixels_8;
-				bg_pixels_10 <= bg_pixels_9;
-
-				IF flip = '0' THEN
-					fg_pixels_0 <= fg_pixels(23 DOWNTO 20);
-				ELSE
-					fg_pixels_0 <= fg_pixels(3 DOWNTO 0);
-				END IF;
-
-			END IF;
-		END IF;
-	END PROCESS;
-
-	WITH xscroll(2 DOWNTO 0) SELECT
-	bg_pixels_shifted <=
-		bg_pixels_7 WHEN "000",
-		bg_pixels_6 WHEN "001",
-		bg_pixels_5 WHEN "010",
-		bg_pixels_4 WHEN "011",
-		bg_pixels_3 WHEN "100",
-		bg_pixels_2 WHEN "101",
-		bg_pixels_1 WHEN "110",
-		bg_pixels_0 WHEN OTHERS;
-
-	--	mux bus addr and pixels data to palette addr
-	palette_addr <=
-		addr_bus(10 DOWNTO 1) WHEN color_cs = '1' ELSE
-		fg_color_bank & fg_pixels_0 WHEN fg_pixels_0 /= x"0" ELSE
-		bg_color_bank(5 DOWNTO 0) & bg_pixels_shifted;
-	--	bg_color_bank(5 downto 3) & vcnt(7 downto 5) & bg_pixels_shifted;
-
-	-- palette output to colors bits
-	video_r <= palette_lo_do(3 DOWNTO 0);
-	video_g <= palette_lo_do(7 DOWNTO 4);
-	video_b <= palette_hi_do(3 DOWNTO 0);
-	video_i <= palette_hi_do(7 DOWNTO 4);
-
-	-- debug -- bypass palette
-	--video_r <= bg_pixels(23) & bg_pixels(22) & "00" when fg_pixels(23 downto 20) = x"0" else fg_pixels(23) & fg_pixels(22) & "00";
-	--video_g <= bg_pixels(21) & bg_pixels(21) & "00" when fg_pixels(23 downto 20) = x"0" else fg_pixels(21) & fg_pixels(21) & "00";
-	--video_b <= bg_pixels(20) & bg_pixels(20) & "00" when fg_pixels(23 downto 20) = x"0" else fg_pixels(20) & fg_pixels(20) & "00";
-	--video_i <= x"F";
-
-	---- 24 bits pixels shift register
-	---- 6 pixels of 4 bits
-	PROCESS (clock_12)
-	BEGIN
-		IF rising_edge(clock_12) THEN
-			IF en_pixel = '0' THEN
-				--		if screen_ctrl = '0' then
-				IF video_access = '1' THEN
-					fg_pixels <= vram_h0_do & vram_l0_do & vram_h1_do & vram_l1_do & vram_h2_do & vram_l2_do;
-					-- map graphics address
-					flip_bg_a <= '0'; -- map_do(7);
-					--if map_do(7) = '0' then
-					graph_addr <= map_do(7 DOWNTO 0) & vcnt(3 DOWNTO 0) & map_x(1) & map_x(0); -- /!\ bit supplementaire 
-					--else
-					--	graph_addr <= map_do(7 downto 0) & vcnt(3 downto 0) & not map_x(1) & not map_x(0); -- /!\ bit supplementaire
-					--end if;
-				ELSE
-					fg_pixels <= fg_pixels(19 DOWNTO 0) & X"0";
-				END IF;
-
-				IF graph_access = '1' THEN
-					flip_bg <= flip_bg_a;
-					bg_pixels <= graph1_do & graph2_do & graph3_do;
-				ELSE
-					IF flip_bg = '0' THEN
-						bg_pixels <= bg_pixels(19 DOWNTO 0) & X"0";
-					ELSE
-						bg_pixels <= X"0" & bg_pixels(23 DOWNTO 4);
-					END IF;
-				END IF;
-				--		else
-				--		end if;
-			END IF;
-		END IF;
-	END PROCESS;
-	pias_clock <= NOT clock_12;
-	pia_io1_pa_i(7 DOWNTO 4) <= NOT ("00" & btn_start_1 & btn_start_2);
-	pia_io1_pa_i(3 DOWNTO 0) <=
-	NOT ('0' & btn_trigger1_1 & btn_right_1 & btn_left_1) WHEN pia_io1_ca2_o = '0' ELSE
-	NOT ('0' & btn_trigger1_2 & btn_right_2 & btn_left_2);
-
-	pia_io1_pb_i <= x"ff";
-	pia_io2_pa_i <= sw_coktail_table & "000" & btn_coin & btn_high_score_reset & btn_advance & btn_auto_up;
-
-	-- video syncs to pia
-	vcnt_240 <= '1' WHEN vcnt = '1' & X"F0" ELSE
-		'0';
-	cnt_4ms <= vcnt(5);
-	--cnt_4ms_o <= vcnt(5);
-
-	-- pia rom irqs to cpu
-	cpu_irq <= pia_io2_irqa OR pia_io2_irqb;
-	--cpu_irq  <= pia_io1_irqa or pia_io1_irqb or pia_io2_irqa or pia_io2_irqb;
-
-	-- chip select/we
-	we_bus <= '1' WHEN (cpu_rw_n = '0' OR blit_rw_n = '0') AND en_pixel = '1' AND en_cpu = '1' ELSE
-		'0';
-
-	vram_cs <= '1' WHEN color_cs = '0' AND addr_bus < x"C000" AND
-		((blit_has_bus = '0') OR
-		(blit_has_bus = '1' AND (addr_bus < x"9000" OR dma_inh_n = '0'))) ELSE
-		'0';
-
-	color_cs <= '1' WHEN addr_bus(15 DOWNTO 12) = X"8" AND page(1 DOWNTO 0) = "11" ELSE
-		'0'; -- 8000-8FFF & page 3
-	rom_bank_cs <= '1' WHEN addr_bus(15) = '0' AND (page /= "000" AND page /= "111") ELSE
-		'0'; -- 0000-7000
-
-	blit_cs <= '1' WHEN addr_bus(15 DOWNTO 7) = X"C8" & '1' ELSE
-		'0'; -- C880-C8FF ? TBC
-	page_cs <= '1' WHEN addr_bus(15 DOWNTO 7) = X"C8" & '0' ELSE
-		'0'; -- C800-C87F
-	seven_seg_cs <= '1' WHEN addr_bus(15 DOWNTO 0) = X"C98C" ELSE
-		'0'; -- C98C
-	fg_color_bank_cs <= '1' WHEN addr_bus(15 DOWNTO 5) = X"CB" & "000" ELSE
-		'0'; -- CB00-CB1F
-	bg_color_bank_cs <= '1' WHEN addr_bus(15 DOWNTO 5) = X"CB" & "001" ELSE
-		'0'; -- CB20-CB3F
-	xscroll_low_cs <= '1' WHEN addr_bus(15 DOWNTO 5) = X"CB" & "010" ELSE
-		'0'; -- CB40-CB5F
-	xscroll_high_cs <= '1' WHEN addr_bus(15 DOWNTO 5) = X"CB" & "011" ELSE
-		'0'; -- CB60-CB7F
-	flip_cs <= '1' WHEN addr_bus(15 DOWNTO 5) = X"CB" & "100" ELSE
-		'0'; -- CB80-CB9F
-	dma_inh_cs <= '1' WHEN addr_bus(15 DOWNTO 5) = X"CB" & "101" ELSE
-		'0'; -- CBA0-CBBF
-	pia_io2_cs <= '1' WHEN addr_bus(15 DOWNTO 7) = X"C9" & "1" AND addr_bus(3 DOWNTO 2) = "00" ELSE
-		'0'; -- C980-C983
-	pia_io1_cs <= '1' WHEN addr_bus(15 DOWNTO 7) = X"C9" & "1" AND addr_bus(3 DOWNTO 2) = "01" ELSE
-		'0'; -- C984-C987
-
-	palette_lo_we <= '1' WHEN we_bus = '1' AND color_cs = '1' AND addr_bus(0) = '0' ELSE
-		'0';
-	palette_hi_we <= '1' WHEN we_bus = '1' AND color_cs = '1' AND addr_bus(0) = '1' ELSE
-		'0';
-	map_we <= '1' WHEN we_bus = '1' AND addr_bus(15 DOWNTO 11) = X"C" & '0' ELSE
-		'0'; -- C000-C7FF
-	cmos_we <= '1' WHEN we_bus = '1' AND addr_bus(15 DOWNTO 10) = x"C" & "11" ELSE
-		'0'; -- CC00-CFFF
-	vram_we <= '1' WHEN we_bus = '1' AND vram_cs = '1' ELSE
-		'0';
-
-	-- dispatch we to devices with respect to decoder bits 7-6 and blitter inhibit
-	vram_l0_we <= '1' WHEN vram_we = '1' AND blit_wr_inh_l = '0' AND decod_do(7 DOWNTO 6) = "00" ELSE
-		'0';
-	vram_l1_we <= '1' WHEN vram_we = '1' AND blit_wr_inh_l = '0' AND decod_do(7 DOWNTO 6) = "01" ELSE
-		'0';
-	vram_l2_we <= '1' WHEN vram_we = '1' AND blit_wr_inh_l = '0' AND decod_do(7 DOWNTO 6) = "10" ELSE
-		'0';
-	vram_h0_we <= '1' WHEN vram_we = '1' AND blit_wr_inh_h = '0' AND decod_do(7 DOWNTO 6) = "00" ELSE
-		'0';
-	vram_h1_we <= '1' WHEN vram_we = '1' AND blit_wr_inh_h = '0' AND decod_do(7 DOWNTO 6) = "01" ELSE
-		'0';
-	vram_h2_we <= '1' WHEN vram_we = '1' AND blit_wr_inh_h = '0' AND decod_do(7 DOWNTO 6) = "10" ELSE
-		'0';
-
-	-- mux banked rom address to external (d)ram
-	rom_addr <= "00" & addr_bus(14 DOWNTO 0) WHEN (page = "010") ELSE -- bank a
-		"01" & addr_bus(14 DOWNTO 0) WHEN (page = "110") ELSE -- bank b
-		"10" & addr_bus(14 DOWNTO 0) WHEN (page = "001" OR page = "011") ELSE -- bank c
-		"11" & addr_bus(14 DOWNTO 0) WHEN (page = "100" OR page = "101") ELSE -- bank d
-		"00" & addr_bus(14 DOWNTO 0); -- bank a
-
-	-- mux data bus between cpu/blitter/roms/io/vram
-	data_bus_high <=
-		rom_prog2_do WHEN addr_bus(15 DOWNTO 12) >= X"E" ELSE -- 8K
-		rom_prog1_do WHEN addr_bus(15 DOWNTO 12) >= X"D" ELSE -- 4K	
-		vcnt(7 DOWNTO 0) WHEN addr_bus(15 DOWNTO 4) = X"CBE" ELSE
-		map_do WHEN addr_bus(15 DOWNTO 11) = X"C" & '0' ELSE
-		x"0" & cmos_do WHEN addr_bus(15 DOWNTO 10) = X"C" & "11" ELSE
-		pia_io1_do WHEN pia_io1_cs = '1' ELSE
-		pia_io2_do WHEN pia_io2_cs = '1' ELSE
-		X"00";
-
-	data_bus_low <=
-		palette_lo_do WHEN color_cs = '1' AND addr_bus(0) = '0' ELSE
-		palette_hi_do WHEN color_cs = '1' AND addr_bus(0) = '1' ELSE
-		rom_do WHEN rom_bank_cs = '1' ELSE
-		--	rom_bank_a_do           when rom_bank_cs = '1' and (page = "010"                ) else
-		--	rom_bank_b_do           when rom_bank_cs = '1' and (page = "110"                ) else
-		--	rom_bank_c_do           when rom_bank_cs = '1' and (page = "001" or page = "011") else
-		--	rom_bank_d_do           when rom_bank_cs = '1' and (page = "100" or page = "101") else
-		vram_h0_do & vram_l0_do WHEN decod_do(7 DOWNTO 6) = "00" ELSE
-		vram_h1_do & vram_l1_do WHEN decod_do(7 DOWNTO 6) = "01" ELSE
-		vram_h2_do & vram_l2_do WHEN decod_do(7 DOWNTO 6) = "10" ELSE
-		X"00";
-
-	data_bus <=
-		cpu_do WHEN cpu_rw_n = '0' ELSE
-		blit_data WHEN blit_rw_n = '0' ELSE
-		data_bus_low WHEN addr_bus(15 DOWNTO 12) < x"C" ELSE
-		data_bus_high;
-
-	PROCESS (clock_12)
-	BEGIN
-		IF rising_edge(clock_12) THEN
-			cpu_di <= data_bus;
-		END IF;
-	END PROCESS;
-
-	-- misc. registers
-	PROCESS (reset, clock_12)
-		VARIABLE blit_h, blit_l : STD_LOGIC;
-		VARIABLE data : STD_LOGIC_VECTOR(7 DOWNTO 0);
-	BEGIN
-		IF reset = '1' THEN
-			page <= "000";
-			seven_seg <= X"00";
-			flip <= '0';
-			dma_inh_n <= '0';
-			fg_color_bank <= (OTHERS => '0');
-			bg_color_bank <= (OTHERS => '0');
-		ELSE
-			IF rising_edge(clock_12) THEN
-				IF page_cs = '1' AND we_bus = '1' THEN
-					page <= data_bus(2 DOWNTO 0);
-				END IF;
-				IF seven_seg_cs = '1' AND we_bus = '1' THEN
-					seven_seg <= data_bus;
-				END IF;
-				IF flip_cs = '1' AND we_bus = '1' THEN
-					flip <= data_bus(0);
-				END IF;
-				IF dma_inh_cs = '1' AND we_bus = '1' THEN
-					dma_inh_n <= data_bus(0);
-				END IF;
-				IF fg_color_bank_cs = '1' AND we_bus = '1' THEN
-					fg_color_bank <= data_bus(5 DOWNTO 0);
-				END IF;
-				IF bg_color_bank_cs = '1' AND we_bus = '1' THEN
-					bg_color_bank <= data_bus(5 DOWNTO 0);
-				END IF;
-				IF xscroll_low_cs = '1' AND we_bus = '1' THEN
-					xscroll(3 DOWNTO 0) <= data_bus(7) & data_bus(2 DOWNTO 0);
-				END IF;
-				IF xscroll_high_cs = '1' AND we_bus = '1' THEN
-					xscroll(11 DOWNTO 4) <= data_bus;
-				END IF;
-			END IF;
-		END IF;
-	END PROCESS;
-
-	-- blitter registers
-	PROCESS (reset, clock_12)
-		VARIABLE blit_h, blit_l : STD_LOGIC;
-		VARIABLE data : STD_LOGIC_VECTOR(7 DOWNTO 0);
-	BEGIN
-		IF reset = '1' THEN
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.std_logic_unsigned.all;
+use ieee.numeric_std.all;
+
+entity williams2 is
+port(
+ clock_12     : in std_logic;
+ reset        : in std_logic;
+ 
+ rom_addr     : out std_logic_vector(16 downto 0);
+ rom_do       : in  std_logic_vector( 7 downto 0);
+ rom_rd       : out std_logic;
+ 
+-- tv15Khz_mode : in std_logic;
+ video_r        : out std_logic_vector(3 downto 0);
+ video_g        : out std_logic_vector(3 downto 0);
+ video_b        : out std_logic_vector(3 downto 0);
+ video_i        : out std_logic_vector(3 downto 0);
+ video_csync    : out std_logic;
+ video_blankn   : out std_logic;
+ video_hs       : out std_logic;
+ video_vs       : out std_logic;
+ 
+ audio_out      : out std_logic_vector(7 downto 0);
+  
+ btn_auto_up          : in std_logic;
+ btn_advance          : in std_logic; 
+ btn_high_score_reset : in std_logic;
+ btn_coin             : in std_logic;
+ btn_start_1          : in std_logic;
+ btn_start_2          : in std_logic;
+ 
+ btn_left_1      : in std_logic;
+ btn_right_1     : in std_logic;
+ btn_trigger1_1  : in std_logic;
+ 
+ btn_left_2      : in std_logic; 
+ btn_right_2     : in std_logic;
+ btn_trigger1_2  : in std_logic;
+
+ sw_coktail_table : in std_logic;
+ seven_seg : out std_logic_vector( 7 downto 0);
+ 
+ dbg_out : out std_logic_vector(31 downto 0)
+
+);
+end williams2;
+
+architecture struct of williams2 is
+
+ signal en_pixel     : std_logic := '0'; 
+ signal video_access : std_logic;
+ signal graph_access : std_logic;
+
+ signal color_cs     : std_logic;
+ signal rom_bank_cs  : std_logic;
+ 
+ signal en_cpu     : std_logic := '0';
+ signal cpu_addr   : std_logic_vector(15 downto 0);
+ signal cpu_di     : std_logic_vector( 7 downto 0);
+ signal cpu_do     : std_logic_vector( 7 downto 0);
+ signal cpu_rw_n   : std_logic;
+ signal cpu_irq    : std_logic;
+
+ signal addr_bus      : std_logic_vector(15 downto 0);
+ signal data_bus_high : std_logic_vector( 7 downto 0);
+ signal data_bus_low  : std_logic_vector( 7 downto 0);
+ signal data_bus      : std_logic_vector( 7 downto 0);
+ signal we_bus        : std_logic;
+
+ signal decod_addr : std_logic_vector( 8 downto 0);
+ signal decod_do   : std_logic_vector( 7 downto 0);
+ 
+ signal vram_addr    : std_logic_vector(13 downto 0);
+ signal vram_cs      : std_logic;
+ signal vram_we      : std_logic;
+ signal vram_l0_do   : std_logic_vector( 3 downto 0);
+ signal vram_l0_we   : std_logic;
+ signal vram_h0_do   : std_logic_vector( 3 downto 0);
+ signal vram_h0_we   : std_logic;
+ signal vram_l1_do   : std_logic_vector( 3 downto 0);
+ signal vram_l1_we   : std_logic;
+ signal vram_h1_do   : std_logic_vector( 3 downto 0);
+ signal vram_h1_we   : std_logic;
+ signal vram_l2_do   : std_logic_vector( 3 downto 0);
+ signal vram_l2_we   : std_logic;
+ signal vram_h2_do   : std_logic_vector( 3 downto 0);
+ signal vram_h2_we   : std_logic;
+ 
+ signal rom_bank_a_do   : std_logic_vector( 7 downto 0);
+ signal rom_bank_b_do   : std_logic_vector( 7 downto 0);
+ signal rom_bank_c_do   : std_logic_vector( 7 downto 0);
+ signal rom_bank_d_do   : std_logic_vector( 7 downto 0);
+
+ signal rom_prog1_do    : std_logic_vector( 7 downto 0);
+ signal rom_prog2_do    : std_logic_vector( 7 downto 0);
+
+-- signal sram0_we        : std_logic;
+-- signal sram0_do        : std_logic_vector( 7 downto 0);
+
+ signal page    : std_logic_vector( 2 downto 0);
+ signal page_cs : std_logic;
+
+ signal seven_seg_cs : std_logic;
+ 
+ signal flip     : std_logic;
+ signal flip_cs  : std_logic;
+ signal flip_bg  : std_logic;
+ signal flip_bg_a: std_logic;
+
+ signal dma_inh_n  : std_logic;
+ signal dma_inh_cs : std_logic;
+
+ signal cmos_do   : std_logic_vector(3 downto 0);
+ signal cmos_we   : std_logic;
+
+ signal palette_addr  : std_logic_vector(9 downto 0);
+ signal palette_lo_we : std_logic;
+ signal palette_lo_do : std_logic_vector(7 downto 0);
+ signal palette_hi_we : std_logic;
+ signal palette_hi_do : std_logic_vector(7 downto 0);
+
+ signal fg_color_bank   : std_logic_vector(5 downto 0);
+ signal fg_color_bank_cs: std_logic;
+ signal bg_color_bank   : std_logic_vector(5 downto 0);
+ signal bg_color_bank_cs: std_logic;
+ 
+ signal map_we          : std_logic;
+ signal map_addr        : std_logic_vector(10 downto 0);
+ signal map_do          : std_logic_vector( 7 downto 0);
+ signal map_x           : std_logic_vector( 8 downto 0);
+ signal xscroll_high_cs : std_logic;
+ signal xscroll_low_cs  : std_logic;
+ signal xscroll         : std_logic_vector(11 downto 0);
+ 
+ signal graph_addr : std_logic_vector(13 downto 0);
+ signal graph1_do  : std_logic_vector( 7 downto 0);
+ signal graph2_do  : std_logic_vector( 7 downto 0);
+ signal graph3_do  : std_logic_vector( 7 downto 0);
+  
+ signal pias_clock  : std_logic;
+
+ signal pia_io1_cs     : std_logic;
+ signal pia_io1_do     : std_logic_vector( 7 downto 0);
+ signal pia_io1_pa_i   : std_logic_vector( 7 downto 0);
+ signal pia_io1_pb_i   : std_logic_vector( 7 downto 0);
+ signal pia_io1_irqa   : std_logic;
+ signal pia_io1_irqb   : std_logic;
+ signal pia_io1_ca2_o  : std_logic;
+ 
+ signal pia_io2_cs    : std_logic;
+ signal pia_io2_do    : std_logic_vector( 7 downto 0);
+ signal pia_io2_irqa  : std_logic;
+ signal pia_io2_irqb  : std_logic;
+ signal pia_io2_pa_i  : std_logic_vector( 7 downto 0);
+ 
+ signal vcnt_240 : std_logic;
+ signal cnt_4ms  : std_logic;
+ 
+ signal pixel_cnt : std_logic_vector(2 downto 0) := "000";
+ signal hcnt : std_logic_vector(5 downto 0) := "000000";
+ signal vcnt : std_logic_vector(8 downto 0) := "000000000";
+
+ signal fg_pixels   : std_logic_vector(23 downto 0);
+ signal fg_pixels_0 : std_logic_vector( 3 downto 0);
+ signal bg_pixels   : std_logic_vector(23 downto 0);
+ signal bg_pixels_0 : std_logic_vector( 3 downto 0);
+ signal bg_pixels_1 : std_logic_vector( 3 downto 0);
+ signal bg_pixels_2 : std_logic_vector( 3 downto 0);
+ signal bg_pixels_3 : std_logic_vector( 3 downto 0);
+ signal bg_pixels_4 : std_logic_vector( 3 downto 0);
+ signal bg_pixels_5 : std_logic_vector( 3 downto 0);
+ signal bg_pixels_6 : std_logic_vector( 3 downto 0);
+ signal bg_pixels_7 : std_logic_vector( 3 downto 0);
+ signal bg_pixels_8 : std_logic_vector( 3 downto 0);
+ signal bg_pixels_9 : std_logic_vector( 3 downto 0);
+ signal bg_pixels_10: std_logic_vector( 3 downto 0);
+ signal bg_pixels_shifted : std_logic_vector(3 downto 0);
+ 
+ signal hsync0,hsync1,hsync2,csync,hblank,vblank : std_logic;
+
+ signal blit_cs     : std_logic;
+ signal blit_has_bus: std_logic;
+ signal blit_start  : std_logic;
+ signal blit_cmd    : std_logic_vector( 7 downto 0);
+ signal blit_color  : std_logic_vector( 7 downto 0);
+ signal blit_src    : std_logic_vector(15 downto 0);
+ signal blit_dst    : std_logic_vector(15 downto 0);
+ signal blit_width  : std_logic_vector( 7 downto 0);
+ signal blit_height : std_logic_vector( 7 downto 0);
+
+ signal blit_go         : std_logic;
+ signal blit_cur_src    : std_logic_vector(15 downto 0);
+ signal blit_cur_dst    : std_logic_vector(15 downto 0);
+ signal blit_cur_width  : std_logic_vector( 7 downto 0);
+ signal blit_cur_height : std_logic_vector( 7 downto 0);
+ signal blit_dst_ori    : std_logic_vector(15 downto 0);
+ signal blit_src_ori    : std_logic_vector(15 downto 0);
+
+ signal blit_rw_n     : std_logic := '1';
+ signal blit_addr     : std_logic_vector(15 downto 0);
+ signal blit_data     : std_logic_vector( 7 downto 0);
+ signal blit_halt     : std_logic := '0';
+ signal blit_wr_inh_h : std_logic := '0';
+ signal blit_wr_inh_l : std_logic := '0';
+ signal right_nibble  : std_logic_vector(3 downto 0);
+ 
+ signal cpu_halt    : std_logic;
+ signal cpu_ba      : std_logic;
+ signal cpu_bs      : std_logic;
+ 
+-- signal gun_bin_code  : std_logic_vector(5 downto 0);
+-- signal gun_gray_code : std_logic_vector(5 downto 0);
+
+ signal sound_select : std_logic_vector(7 downto 0);
+ signal sound_trig   : std_logic;
+ signal sound_ack    : std_logic;
+ 
+ signal sound_cpu_addr : std_logic_vector(15 downto 0);
+
+begin
+
+-- for debug
+process (clock_12) 
+begin
+	if rising_edge(clock_12) then 
+--		dbg_out(15 downto 0) <= cpu_addr;
+		dbg_out(15 downto 0) <= sound_cpu_addr;		
+	end if;
+end process;
+		
+-- make pixels counters and cpu clock
+-- in original hardware cpu clock = 1us = 6pixels
+-- here one make 2 cpu clock within 1us
+process (reset, clock_12)
+begin
+	if rising_edge(clock_12) then
+	
+		en_pixel <= not en_pixel;
+		en_cpu <= '0';
+		video_access <= '0';
+		graph_access <= '0';
+		rom_rd <= '0';
+			
+		if pixel_cnt = "000" then en_cpu <= '1';       end if;
+		if pixel_cnt = "001" then rom_rd <= '1';       end if;
+		if pixel_cnt = "011" then video_access <= '1'; end if;			
+		if pixel_cnt = "100" then graph_access <= '1'; end if;
+	
+		if en_pixel = '1' then 		
+			if pixel_cnt = "101" then
+				pixel_cnt <= "000";
+			else
+				pixel_cnt <= pixel_cnt + '1';
+			end if;
+					
+		end if;						
+			
+	end if;
+end process;
+
+-- make hcnt and vcnt video scanner from pixel clocks and counts
+-- 
+--  pixels   |0|1|2|3|4|5|0|1|2|3|4|5|
+--  hcnt     |     N     |  N+1      | 
+--
+--  hcnt [0..63] => 64 x 6 = 384 pixels,  1 pixel is 1us => 1 line is 64us (15.625KHz)
+--  vcnt [252..255,256..511] => 260 lines, 1 frame is 260 x 64us = 16.640ms (60.1Hz)
+--
+process (reset, clock_12)
+begin
+	if reset='1' then
+		hcnt <= "000000";
+		vcnt <= '0'&X"FC";
+	else 
+		if rising_edge(clock_12) then
+		
+			if (pixel_cnt = "101") and (en_pixel = '1' ) then
+				hcnt <= hcnt + '1';
+				if hcnt = "111101" then
+					if vcnt = '1'&X"FF" then
+						vcnt <= '0'&X"FC";
+					else
+						vcnt <= vcnt + '1';
+					end if;
+				end if;
+			end if;
+									
+		end if;
+	end if;
+end process;
+
+-- mux cpu addr and blitter addr to bus addr
+blit_has_bus <= '1' when cpu_halt = '1' and cpu_ba = '1' and cpu_bs = '1' else '0';
+addr_bus <= blit_addr when blit_has_bus = '1' else cpu_addr;
+
+-- decod bus addr to vram addr
+decod_addr <= addr_bus(15 downto 13) &'0'& addr_bus(12 downto 8);
+ 
+-- mux bus addr and video scanner to vram addr
+vram_addr <= 
+	addr_bus (7 downto 0) & decod_do(5 downto 0) when video_access = '0' else
+	vcnt(7 downto 0) & hcnt;	
+
+-- mux bus addr and video scanner to map ram addr
+map_x <= (("000" & (hcnt(5 downto 0)+1)) + ('0' & xscroll(10 downto 3))) xor (xscroll(11) & x"00") ;
+map_addr <=
+	addr_bus(3 downto 0) & addr_bus(10 downto 4) when video_access = '0' else 
+	vcnt(7 downto 4) & map_x(8 downto 2);
+
+-- bg pixel delay
+process (clock_12) 
+begin
+	if rising_edge(clock_12) then 
+		if en_pixel = '0' then
+			if flip_bg = '0' then 
+				bg_pixels_0 <= bg_pixels(23 downto 20); 
+			else 
+				bg_pixels_0 <= bg_pixels( 3 downto  0);
+			end if;
+			bg_pixels_1 <= bg_pixels_0;
+			bg_pixels_2 <= bg_pixels_1;
+			bg_pixels_3 <= bg_pixels_2;
+			bg_pixels_4 <= bg_pixels_3;
+			bg_pixels_5 <= bg_pixels_4;
+			bg_pixels_6 <= bg_pixels_5;
+			bg_pixels_7 <= bg_pixels_6;
+			bg_pixels_8 <= bg_pixels_7;
+			bg_pixels_9 <= bg_pixels_8;
+			bg_pixels_10<= bg_pixels_9;
+			
+			if flip = '0' then 
+				fg_pixels_0 <= fg_pixels(23 downto 20);
+			else 
+				fg_pixels_0 <= fg_pixels( 3 downto  0);
+			end if;
+
+		end if;
+	end if;
+end process;
+
+with xscroll(2 downto 0) select
+bg_pixels_shifted <= 
+	bg_pixels_7 when "000",
+	bg_pixels_6 when "001",
+	bg_pixels_5 when "010",
+	bg_pixels_4 when "011",
+	bg_pixels_3 when "100",
+	bg_pixels_2 when "101",
+	bg_pixels_1 when "110",
+	bg_pixels_0 when others;
+	
+--	mux bus addr and pixels data to palette addr
+palette_addr <=
+	addr_bus(10 downto 1) when color_cs = '1' else 
+	fg_color_bank & fg_pixels_0 when fg_pixels_0 /= x"0" else
+	bg_color_bank(5 downto 0) & bg_pixels_shifted;
+--	bg_color_bank(5 downto 3) & vcnt(7 downto 5) & bg_pixels_shifted;
+	
+-- palette output to colors bits
+video_r <= palette_lo_do(3 downto 0);
+video_g <= palette_lo_do(7 downto 4);
+video_b <= palette_hi_do(3 downto 0);
+video_i <= palette_hi_do(7 downto 4);
+
+-- debug -- bypass palette
+--video_r <= bg_pixels(23) & bg_pixels(22) & "00" when fg_pixels(23 downto 20) = x"0" else fg_pixels(23) & fg_pixels(22) & "00";
+--video_g <= bg_pixels(21) & bg_pixels(21) & "00" when fg_pixels(23 downto 20) = x"0" else fg_pixels(21) & fg_pixels(21) & "00";
+--video_b <= bg_pixels(20) & bg_pixels(20) & "00" when fg_pixels(23 downto 20) = x"0" else fg_pixels(20) & fg_pixels(20) & "00";
+--video_i <= x"F";
+
+---- 24 bits pixels shift register
+---- 6 pixels of 4 bits
+process (clock_12) 
+begin
+	if rising_edge(clock_12) then 
+		if en_pixel = '0' then
+--		if screen_ctrl = '0' then
+			if video_access = '1' then
+				fg_pixels <= vram_h0_do & vram_l0_do & vram_h1_do & vram_l1_do & vram_h2_do & vram_l2_do;
+				-- map graphics address
+				flip_bg_a <= '0'; -- map_do(7);
+				--if map_do(7) = '0' then
+					graph_addr <= map_do(7 downto 0) & vcnt(3 downto 0) & map_x(1) & map_x(0);         -- /!\ bit supplementaire 
+				--else
+				--	graph_addr <= map_do(7 downto 0) & vcnt(3 downto 0) & not map_x(1) & not map_x(0); -- /!\ bit supplementaire
+				--end if;
+			else
+				fg_pixels <= fg_pixels(19 downto 0) & X"0" ;		
+			end if;
+			
+			if graph_access = '1' then
+				flip_bg <= flip_bg_a;
+				bg_pixels <= graph1_do & graph2_do & graph3_do;
+			else
+				if flip_bg = '0' then 
+					bg_pixels <= bg_pixels(19 downto 0) & X"0";
+				else 
+					bg_pixels <= X"0" & bg_pixels(23 downto 4);		
+				end if;
+			end if;
+--		else
+--		end if;
+		end if;
+	end if;
+end process;
+				
+
+pias_clock <= not clock_12;
+pia_io1_pa_i(7 downto 4) <= not ("00"& btn_start_1 & btn_start_2);
+pia_io1_pa_i(3 downto 0) <= 
+	not ('0' & btn_trigger1_1 & btn_right_1 & btn_left_1) when pia_io1_ca2_o = '0' else 
+	not ('0' & btn_trigger1_2 & btn_right_2 & btn_left_2);
+
+pia_io1_pb_i <= x"ff"; 
+pia_io2_pa_i <= sw_coktail_table & "000" & btn_coin & btn_high_score_reset & btn_advance & btn_auto_up; 
+
+-- video syncs to pia
+vcnt_240  <= '1' when vcnt = '1'&X"F0" else '0';
+cnt_4ms   <= vcnt(5);
+--cnt_4ms_o <= vcnt(5);
+
+-- pia rom irqs to cpu
+cpu_irq  <= pia_io2_irqa or pia_io2_irqb;
+--cpu_irq  <= pia_io1_irqa or pia_io1_irqb or pia_io2_irqa or pia_io2_irqb;
+
+-- chip select/we
+we_bus  <= '1' when (cpu_rw_n = '0' or blit_rw_n = '0') and en_pixel = '1' and en_cpu = '1' else '0';
+
+vram_cs <= '1' when color_cs = '0' and  addr_bus < x"C000" and 
+						( (blit_has_bus = '0' ) or
+						  (blit_has_bus = '1' and (addr_bus < x"9000" or dma_inh_n = '0'))) else '0';
+
+color_cs         <= '1' when addr_bus(15 downto 12) = X"8" and page(1 downto 0) = "11" else '0'; -- 8000-8FFF & page 3
+rom_bank_cs      <= '1' when addr_bus(15) = '0' and (page /= "000" and page /= "111")  else '0'; -- 0000-7000
+
+blit_cs          <= '1' when addr_bus(15 downto  7) = X"C8"&'1'   else '0'; -- C880-C8FF ? TBC
+page_cs          <= '1' when addr_bus(15 downto  7) = X"C8"&'0'   else '0'; -- C800-C87F
+seven_seg_cs     <= '1' when addr_bus(15 downto  0) = X"C98C"     else '0'; -- C98C
+fg_color_bank_cs <= '1' when addr_bus(15 downto  5) = X"CB"&"000" else '0'; -- CB00-CB1F
+bg_color_bank_cs <= '1' when addr_bus(15 downto  5) = X"CB"&"001" else '0'; -- CB20-CB3F
+xscroll_low_cs   <= '1' when addr_bus(15 downto  5) = X"CB"&"010" else '0'; -- CB40-CB5F
+xscroll_high_cs  <= '1' when addr_bus(15 downto  5) = X"CB"&"011" else '0'; -- CB60-CB7F
+flip_cs          <= '1' when addr_bus(15 downto  5) = X"CB"&"100" else '0'; -- CB80-CB9F
+dma_inh_cs       <= '1' when addr_bus(15 downto  5) = X"CB"&"101" else '0'; -- CBA0-CBBF
+pia_io2_cs       <= '1' when addr_bus(15 downto  7) = X"C9"&"1" and addr_bus(3 downto 2) = "00" else '0'; -- C980-C983
+pia_io1_cs       <= '1' when addr_bus(15 downto  7) = X"C9"&"1" and addr_bus(3 downto 2) = "01" else '0'; -- C984-C987
+
+palette_lo_we <= '1' when we_bus = '1' and color_cs = '1' and addr_bus(0) = '0' else '0';
+palette_hi_we <= '1' when we_bus = '1' and color_cs = '1' and addr_bus(0) = '1' else '0';
+map_we        <= '1' when we_bus = '1' and addr_bus(15 downto 11) = X"C"&'0'    else '0'; -- C000-C7FF
+cmos_we       <= '1' when we_bus = '1' and addr_bus(15 downto 10) = x"C"&"11"   else '0'; -- CC00-CFFF
+vram_we       <= '1' when we_bus = '1' and vram_cs = '1' else '0';
+
+-- dispatch we to devices with respect to decoder bits 7-6 and blitter inhibit
+vram_l0_we  <= '1' when vram_we = '1' and blit_wr_inh_l = '0' and decod_do(7 downto 6)  = "00" else '0';
+vram_l1_we  <= '1' when vram_we = '1' and blit_wr_inh_l = '0' and decod_do(7 downto 6)  = "01" else '0';
+vram_l2_we  <= '1' when vram_we = '1' and blit_wr_inh_l = '0' and decod_do(7 downto 6)  = "10" else '0';
+vram_h0_we  <= '1' when vram_we = '1' and blit_wr_inh_h = '0' and decod_do(7 downto 6)  = "00" else '0';
+vram_h1_we  <= '1' when vram_we = '1' and blit_wr_inh_h = '0' and decod_do(7 downto 6)  = "01" else '0';
+vram_h2_we  <= '1' when vram_we = '1' and blit_wr_inh_h = '0' and decod_do(7 downto 6)  = "10" else '0';
+
+-- mux banked rom address to external (d)ram
+rom_addr <= "00"&addr_bus(14 downto 0) when (page = "010"                ) else -- bank a
+				"01"&addr_bus(14 downto 0) when (page = "110"                ) else -- bank b
+				"10"&addr_bus(14 downto 0) when (page = "001" or page = "011") else -- bank c
+				"11"&addr_bus(14 downto 0) when (page = "100" or page = "101") else -- bank d
+				"00"&addr_bus(14 downto 0);                                         -- bank a
+
+-- mux data bus between cpu/blitter/roms/io/vram
+data_bus_high <=
+	rom_prog2_do            when addr_bus(15 downto 12) >= X"E" else -- 8K
+	rom_prog1_do            when addr_bus(15 downto 12) >= X"D" else -- 4K	
+	vcnt(7 downto 0)        when addr_bus(15 downto  4)  = X"CBE" else
+	map_do                  when addr_bus(15 downto 11)  = X"C"&'0' else
+	x"0"&cmos_do            when addr_bus(15 downto 10)  = X"C"&"11" else
+	pia_io1_do              when pia_io1_cs = '1' else
+	pia_io2_do              when pia_io2_cs = '1' else
+	X"00";
+
+data_bus_low <=
+	palette_lo_do           when color_cs = '1' and addr_bus(0) = '0' else
+	palette_hi_do           when color_cs = '1' and addr_bus(0) = '1' else	
+	rom_do                  when rom_bank_cs = '1' else
+--	rom_bank_a_do           when rom_bank_cs = '1' and (page = "010"                ) else
+--	rom_bank_b_do           when rom_bank_cs = '1' and (page = "110"                ) else
+--	rom_bank_c_do           when rom_bank_cs = '1' and (page = "001" or page = "011") else
+--	rom_bank_d_do           when rom_bank_cs = '1' and (page = "100" or page = "101") else
+	vram_h0_do & vram_l0_do when decod_do(7 downto 6)  = "00" else
+	vram_h1_do & vram_l1_do when decod_do(7 downto 6)  = "01" else
+	vram_h2_do & vram_l2_do when decod_do(7 downto 6)  = "10" else
+	X"00";
+
+data_bus <=
+	cpu_do		  when cpu_rw_n = '0' else
+	blit_data     when blit_rw_n = '0' else
+	data_bus_low  when addr_bus(15 downto 12) < x"C" else
+	data_bus_high;
+
+process (clock_12)
+begin
+	if rising_edge(clock_12) then 
+		cpu_di <= data_bus;
+	end if;
+end process;
+	
+-- misc. registers
+process (reset, clock_12)
+variable blit_h, blit_l : std_logic;
+variable data: std_logic_vector(7 downto 0);
+begin
+	if reset='1' then
+		page <= "000";
+		seven_seg <= X"00";
+		flip <= '0';
+		dma_inh_n <='0';
+		fg_color_bank <= (others => '0');
+		bg_color_bank <= (others => '0');
+	else 
+		if rising_edge(clock_12) then 
+			if page_cs = '1'          and we_bus = '1' then page          <= data_bus(2 downto 0); end if;
+			if seven_seg_cs = '1'     and we_bus = '1' then seven_seg     <= data_bus; end if;
+			if flip_cs = '1'          and we_bus = '1' then flip          <= data_bus(0); end if;
+			if dma_inh_cs = '1'       and we_bus = '1' then dma_inh_n     <= data_bus(0); end if;
+			if fg_color_bank_cs = '1' and we_bus = '1' then fg_color_bank <= data_bus(5 downto 0); end if;
+			if bg_color_bank_cs = '1' and we_bus = '1' then bg_color_bank <= data_bus(5 downto 0); end if;
+			if xscroll_low_cs = '1'   and we_bus = '1' then xscroll( 3 downto 0) <= data_bus(7) & data_bus(2 downto 0) ;end if;
+			if xscroll_high_cs = '1'  and we_bus = '1' then xscroll(11 downto 4) <= data_bus; end if;
+		end if;
+	end if;
+end process;
+
+-- blitter registers
+process (reset, clock_12)
+variable blit_h, blit_l : std_logic;
+variable data: std_logic_vector(7 downto 0);
+begin
+if reset='1' then
+	blit_start  <= '0';
+	blit_cmd    <= (others=>'0');
+	blit_color  <= (others=>'0');
+	blit_src    <= (others=>'0');
+	blit_dst    <= (others=>'0');
+	blit_width  <= (others=>'0');
+	blit_height <= (others=>'0');
+else 
+	if rising_edge(clock_12) then 		
+		if blit_cs = '1' and we_bus = '1' then
+				case addr_bus(2 downto 0) is 
+					when "000" => blit_cmd <= data_bus;
+									  blit_start <= '1';
+					when "001" => blit_color <= data_bus;
+					when "010" => blit_src(15 downto 8) <= data_bus;
+					when "011" => blit_src( 7 downto 0) <= data_bus;
+					when "100" => blit_dst(15 downto 8) <= data_bus;
+					when "101" => blit_dst( 7 downto 0) <= data_bus;
+					when "110" =>
+						if data_bus = X"00" then 
+							blit_width <= x"00";
+						else
+							blit_width <= data_bus-1;
+						end if;
+					
+					when "111" =>
+						if data_bus = X"00" then 
+							blit_height <= x"00";
+						else
+							blit_height <= data_bus-1;
+						end if;
+					when others => null;
+				end case;
+		end if;
+		
+		if blit_halt = '1' then 
 			blit_start <= '0';
-			blit_cmd <= (OTHERS => '0');
-			blit_color <= (OTHERS => '0');
-			blit_src <= (OTHERS => '0');
-			blit_dst <= (OTHERS => '0');
-			blit_width <= (OTHERS => '0');
-			blit_height <= (OTHERS => '0');
-		ELSE
-			IF rising_edge(clock_12) THEN
-				IF blit_cs = '1' AND we_bus = '1' THEN
-					CASE addr_bus(2 DOWNTO 0) IS
-						WHEN "000" => blit_cmd <= data_bus;
-							blit_start <= '1';
-						WHEN "001" => blit_color <= data_bus;
-						WHEN "010" => blit_src(15 DOWNTO 8) <= data_bus;
-						WHEN "011" => blit_src(7 DOWNTO 0) <= data_bus;
-						WHEN "100" => blit_dst(15 DOWNTO 8) <= data_bus;
-						WHEN "101" => blit_dst(7 DOWNTO 0) <= data_bus;
-						WHEN "110" =>
-							IF data_bus = X"00" THEN
-								blit_width <= x"00";
-							ELSE
-								blit_width <= data_bus - 1;
-							END IF;
+		end if;
 
-						WHEN "111" =>
-							IF data_bus = X"00" THEN
-								blit_height <= x"00";
-							ELSE
-								blit_height <= data_bus - 1;
-							END IF;
-						WHEN OTHERS => NULL;
-					END CASE;
-				END IF;
+	end if;
+end if;
+end process;
 
-				IF blit_halt = '1' THEN
-					blit_start <= '0';
-				END IF;
+-- blitter - IC29-30
+process (reset, clock_12)
+variable blit_h, blit_l : std_logic;
+variable data: std_logic_vector(7 downto 0);
+begin
+if reset='1' then
+	blit_rw_n     <= '1';
+ 	cpu_halt      <= '0';
+	blit_halt     <= '0';
+	blit_wr_inh_h <= '0';
+	blit_wr_inh_l <= '0';
+else 
+	if rising_edge(clock_12) then 
 
-			END IF;
-		END IF;
-	END PROCESS;
-
-	-- blitter - IC29-30
-	PROCESS (reset, clock_12)
-		VARIABLE blit_h, blit_l : STD_LOGIC;
-		VARIABLE data : STD_LOGIC_VECTOR(7 DOWNTO 0);
-	BEGIN
-		IF reset = '1' THEN
+		-- sync cpu_halt in the middle of cpu cycle
+		if video_access = '1' then
+			cpu_halt <= blit_halt;
+		end if;
+		
+		--	intialize blit
+		if blit_start = '1' and blit_halt = '0' and video_access = '1' then
+			blit_halt <= '1';
+			blit_cur_src <= blit_src;
+			blit_src_ori <= blit_src;
+			blit_cur_dst <= blit_dst;
+			blit_dst_ori <= blit_dst;
+			blit_cur_width <= blit_width;
+			blit_cur_height <= blit_height;
+			right_nibble <= x"0";
+			blit_go <= '1';
+			-- begin with read step
+			blit_addr <= blit_src;
 			blit_rw_n <= '1';
-			cpu_halt <= '0';
-			blit_halt <= '0';
-			blit_wr_inh_h <= '0';
-			blit_wr_inh_l <= '0';
-		ELSE
-			IF rising_edge(clock_12) THEN
+		end if;
+		
+		-- do blit
+		if blit_has_bus = '1' then
+		
+			-- read step (use graph access)			
+			if graph_access = '1' and en_pixel = '0' and blit_go = '1' then 
+			
+				-- next step will be write
+				blit_addr <= blit_cur_dst;
+				blit_rw_n <= '0';
+				
+				-- also prepare next source address w.r.t source stride
+				if blit_cmd(0) = '0' then
+					blit_cur_src <= blit_cur_src + 1;							
+				else 
+					if blit_cur_width = 0  then
+						blit_cur_src <= blit_src_ori + 1;							
+						blit_src_ori <= blit_src_ori + 1;							
+					else 
+						blit_cur_src <= blit_cur_src + 256;							
+					end if;
+				end if;
 
-				-- sync cpu_halt in the middle of cpu cycle
-				IF video_access = '1' THEN
-					cpu_halt <= blit_halt;
-				END IF;
+				-- get data from source and prepare data to be written
+				blit_h := not blit_cmd(7);
+				blit_l := not blit_cmd(6);
+				
+				-- right shift mode
+				if blit_cmd(5) = '0' then
+					data := data_bus;
+				else
+					data :=  right_nibble & data_bus(7 downto 4); 
+					right_nibble <= data_bus(3 downto 0); 
+				end if;
+				
+				-- transparent mode : don't write pixel if src = 0
+				if blit_cmd(3) = '1' then 
+					if data(7 downto 4) = x"0" then blit_h := '0'; end if;
+					if data(3 downto 0) = x"0" then blit_l := '0'; end if;					
+				end if; 
+					
+				-- solid mode : write color instead of src data
+				if blit_cmd(4) = '1' then
+					data := blit_color;
+				else 
+					data := data;
+				end if;
+				
+				-- put data to written on bus with write inhibits
+				blit_data <= data;
+				blit_wr_inh_h <= not blit_h; 
+				blit_wr_inh_l <= not blit_l;
+					
+			end if;
+			
+			-- write step (use cpu access)
+			if en_cpu = '1' and en_pixel = '0' and blit_go = '1' then
+				-- next step will be read
+				blit_addr <= blit_cur_src;
+				blit_rw_n <= '1';
+				
+				-- also prepare next destination address w.r.t destination stride
+				-- or stop blit
+				if blit_cur_width = 0 then
+					if blit_cur_height = 0 then
+						-- end of blit
+						blit_halt <= '0';
+						blit_wr_inh_h <= '0';
+						blit_wr_inh_l <= '0';
+					else
+						blit_cur_width <= blit_width;
+						blit_cur_height <= blit_cur_height - 1;
+						
+						if blit_cmd(1) = '0' then
+							blit_cur_dst <= blit_cur_dst + 1;
+						else							
+							blit_cur_dst <= blit_dst_ori + 1;
+							blit_dst_ori <= blit_dst_ori + 1; 
+						end if;
+						
+					end if;
+				else
+					blit_cur_width <= blit_cur_width - 1;
+					
+					if blit_cmd(1) = '0' then
+						blit_cur_dst <= blit_cur_dst + 1;
+					else
+						blit_cur_dst <= blit_cur_dst + 256;
+					end if;					
+				end if;					
+			end if;
+					
+			-- slow mode
+			if en_cpu = '1' and en_pixel = '0' and blit_cmd(2) = '1' then
+				blit_go <= not blit_go;
+			end if;
+												
+		end if; -- cpu halted	
+	end if;
+end if;
+end process;
 
-				--	intialize blit
-				IF blit_start = '1' AND blit_halt = '0' AND video_access = '1' THEN
-					blit_halt <= '1';
-					blit_cur_src <= blit_src;
-					blit_src_ori <= blit_src;
-					blit_cur_dst <= blit_dst;
-					blit_dst_ori <= blit_dst;
-					blit_cur_width <= blit_width;
-					blit_cur_height <= blit_height;
-					right_nibble <= x"0";
-					blit_go <= '1';
-					-- begin with read step
-					blit_addr <= blit_src;
-					blit_rw_n <= '1';
-				END IF;
+-- microprocessor 6809 -IC28
+main_cpu : entity work.cpu09
+port map(	
+	clk      => en_cpu,   -- E clock input (falling edge)
+	rst      => reset,    -- reset input (active high)
+	vma      => open,     -- valid memory address (active high)
+   lic_out  => open,     -- last instruction cycle (active high)
+   ifetch   => open,     -- instruction fetch cycle (active high)
+   opfetch  => open,     -- opcode fetch (active high)
+   ba       => cpu_ba,   -- bus available (high on sync wait or DMA grant)
+   bs       => cpu_bs,   -- bus status (high on interrupt or reset vector fetch or DMA grant)
+	addr     => cpu_addr, -- address bus output
+	rw       => cpu_rw_n, -- read not write output
+	data_out => cpu_do,   -- data bus output
+	data_in  => cpu_di,   -- data bus input
+	irq      => cpu_irq,  -- interrupt request input (active high)
+	firq     => '0',      -- fast interrupt request input (active high)
+	nmi      => '0',      -- non maskable interrupt request input (active high)
+	halt     => cpu_halt, -- halt input (active high) grants DMA
+	hold     => '0'       -- hold input (active high) extend bus cycle
+);
 
-				-- do blit
-				IF blit_has_bus = '1' THEN
+-- cpu program roms - IC9-10-54
+prog1_rom : entity work.joust2_prog1
+port map(
+ clk  => clock_12,
+ addr => addr_bus(11 downto 0),
+ data => rom_prog1_do
+);
 
-					-- read step (use graph access)			
-					IF graph_access = '1' AND en_pixel = '0' AND blit_go = '1' THEN
+prog2_rom : entity work.joust2_prog2
+port map(
+ clk  => clock_12,
+ addr => addr_bus(12 downto 0),
+ data => rom_prog2_do
+);
 
-						-- next step will be write
-						blit_addr <= blit_cur_dst;
-						blit_rw_n <= '0';
 
-						-- also prepare next source address w.r.t source stride
-						IF blit_cmd(0) = '0' THEN
-							blit_cur_src <= blit_cur_src + 1;
-						ELSE
-							IF blit_cur_width = 0 THEN
-								blit_cur_src <= blit_src_ori + 1;
-								blit_src_ori <= blit_src_ori + 1;
-							ELSE
-								blit_cur_src <= blit_cur_src + 256;
-							END IF;
-						END IF;
+-- rom17.ic26 + rom15.ic24 
+bank_a_rom : entity work.joust2_bank_a
+port map(
+ clk  => clock_12,
+ addr => addr_bus(14 downto 0),
+ data => rom_bank_a_do
+);
 
-						-- get data from source and prepare data to be written
-						blit_h := NOT blit_cmd(7);
-						blit_l := NOT blit_cmd(6);
+-- rom16.ic25 + rom14.ic23 + rom13.ic21 + rom12.ic19 
+bank_b_rom : entity work.joust2_bank_b
+port map(
+ clk  => clock_12,
+ addr => addr_bus(14 downto 0),
+ data => rom_bank_b_do
+);
 
-						-- right shift mode
-						IF blit_cmd(5) = '0' THEN
-							data := data_bus;
-						ELSE
-							data := right_nibble & data_bus(7 DOWNTO 4);
-							right_nibble <= data_bus(3 DOWNTO 0);
-						END IF;
+-- rom11.ic18 + rom9.ic16 + rom7.ic14 + rom5.ic12 
+bank_c_rom : entity work.joust2_bank_c
+port map(
+ clk  => clock_12,
+ addr => addr_bus(14 downto 0),
+ data => rom_bank_c_do
+);
 
-						-- transparent mode : don't write pixel if src = 0
-						IF blit_cmd(3) = '1' THEN
-							IF data(7 DOWNTO 4) = x"0" THEN
-								blit_h := '0';
-							END IF;
-							IF data(3 DOWNTO 0) = x"0" THEN
-								blit_l := '0';
-							END IF;
-						END IF;
+-- rom10.ic17 + rom8.ic15 + rom6.ic13 + rom4.ic11
+bank_d_rom : entity work.joust2_bank_d
+port map(
+ clk  => clock_12,
+ addr => addr_bus(14 downto 0),
+ data => rom_bank_d_do
+);
 
-						-- solid mode : write color instead of src data
-						IF blit_cmd(4) = '1' THEN
-							data := blit_color;
-						ELSE
-							data := data;
-						END IF;
+-- rom20.ic57
+graph1_rom : entity work.joust2_graph1
+port map(
+ clk  => clock_12,
+ addr => graph_addr,
+ data => graph1_do
+);
 
-						-- put data to written on bus with write inhibits
-						blit_data <= data;
-						blit_wr_inh_h <= NOT blit_h;
-						blit_wr_inh_l <= NOT blit_l;
+-- rom20.ic58
+graph2_rom : entity work.joust2_graph2
+port map(
+ clk  => clock_12,
+ addr => graph_addr,
+ data => graph2_do
+);
 
-					END IF;
+-- rom20.ic41
+graph3_rom : entity work.joust2_graph3
+port map(
+ clk  => clock_12,
+ addr => graph_addr,
+ data => graph3_do
+);
 
-					-- write step (use cpu access)
-					IF en_cpu = '1' AND en_pixel = '0' AND blit_go = '1' THEN
-						-- next step will be read
-						blit_addr <= blit_cur_src;
-						blit_rw_n <= '1';
+-- cpu/video wram low 0 - IC102-105
+cpu_video_ram_l0 : entity work.gen_ram
+generic map( dWidth => 4, aWidth => 14)
+port map(
+ clk  => clock_12,
+ we   => vram_l0_we,
+ addr => vram_addr,
+ d    => data_bus(3 downto 0),
+ q    => vram_l0_do
+);
 
-						-- also prepare next destination address w.r.t destination stride
-						-- or stop blit
-						IF blit_cur_width = 0 THEN
-							IF blit_cur_height = 0 THEN
-								-- end of blit
-								blit_halt <= '0';
-								blit_wr_inh_h <= '0';
-								blit_wr_inh_l <= '0';
-							ELSE
-								blit_cur_width <= blit_width;
-								blit_cur_height <= blit_cur_height - 1;
+-- cpu/video wram high 0 - IC98-101
+cpu_video_ram_h0 : entity work.gen_ram
+generic map( dWidth => 4, aWidth => 14)
+port map(
+ clk  => clock_12,
+ we   => vram_h0_we,
+ addr => vram_addr,
+ d    => data_bus(7 downto 4),
+ q    => vram_h0_do
+);
 
-								IF blit_cmd(1) = '0' THEN
-									blit_cur_dst <= blit_cur_dst + 1;
-								ELSE
-									blit_cur_dst <= blit_dst_ori + 1;
-									blit_dst_ori <= blit_dst_ori + 1;
-								END IF;
+-- cpu/video wram low 1 - IC110-113
+cpu_video_ram_l1 : entity work.gen_ram
+generic map( dWidth => 4, aWidth => 14)
+port map(
+ clk  => clock_12,
+ we   => vram_l1_we,
+ addr => vram_addr,
+ d    => data_bus(3 downto 0),
+ q    => vram_l1_do
+);
 
-							END IF;
-						ELSE
-							blit_cur_width <= blit_cur_width - 1;
+-- cpu/video wram high 1 - IC106-109
+cpu_video_ram_h1 : entity work.gen_ram
+generic map( dWidth => 4, aWidth => 14)
+port map(
+ clk  => clock_12,
+ we   => vram_h1_we,
+ addr => vram_addr,
+ d    => data_bus(7 downto 4),
+ q    => vram_h1_do
+);
 
-							IF blit_cmd(1) = '0' THEN
-								blit_cur_dst <= blit_cur_dst + 1;
-							ELSE
-								blit_cur_dst <= blit_cur_dst + 256;
-							END IF;
-						END IF;
-					END IF;
+-- cpu/video wram low 2 - IC118-121
+cpu_video_ram_l2 : entity work.gen_ram
+generic map( dWidth => 4, aWidth => 14)
+port map(
+ clk  => clock_12,
+ we   => vram_l2_we,
+ addr => vram_addr,
+ d    => data_bus(3 downto 0),
+ q    => vram_l2_do
+);
 
-					-- slow mode
-					IF en_cpu = '1' AND en_pixel = '0' AND blit_cmd(2) = '1' THEN
-						blit_go <= NOT blit_go;
-					END IF;
+-- cpu/video wram high 2 - IC115-117
+cpu_video_ram_h2 : entity work.gen_ram
+generic map( dWidth => 4, aWidth => 14)
+port map(
+ clk  => clock_12,
+ we   => vram_h2_we,
+ addr => vram_addr,
+ d    => data_bus(7 downto 4),
+ q    => vram_h2_do
+);
 
-				END IF; -- cpu halted	
-			END IF;
-		END IF;
-	END PROCESS;
 
-	-- microprocessor 6809 -IC28
-	main_cpu : ENTITY work.cpu09
-		PORT MAP(
-			clk => en_cpu, -- E clock input (falling edge)
-			rst => reset, -- reset input (active high)
-			vma => OPEN, -- valid memory address (active high)
-			lic_out => OPEN, -- last instruction cycle (active high)
-			ifetch => OPEN, -- instruction fetch cycle (active high)
-			opfetch => OPEN, -- opcode fetch (active high)
-			ba => cpu_ba, -- bus available (high on sync wait or DMA grant)
-			bs => cpu_bs, -- bus status (high on interrupt or reset vector fetch or DMA grant)
-			addr => cpu_addr, -- address bus output
-			rw => cpu_rw_n, -- read not write output
-			data_out => cpu_do, -- data bus output
-			data_in => cpu_di, -- data bus input
-			irq => cpu_irq, -- interrupt request input (active high)
-			firq => '0', -- fast interrupt request input (active high)
-			nmi => '0', -- non maskable interrupt request input (active high)
-			halt => cpu_halt, -- halt input (active high) grants DMA
-			hold => '0' -- hold input (active high) extend bus cycle
-		);
+-- palette rams - IC78-77
+palette_ram_lo : entity work.gen_ram
+generic map( dWidth => 8, aWidth => 10)
+port map(
+ clk  => clock_12,
+ we   => palette_lo_we,
+ addr => palette_addr,
+ d    => data_bus,
+ q    => palette_lo_do
+);
 
-	-- cpu program roms - IC9-10-54
-	prog1_rom : ENTITY work.joust2_prog1
-		PORT MAP(
-			clk => clock_12,
-			addr => addr_bus(11 DOWNTO 0),
-			data => rom_prog1_do
-		);
+-- palette rams - IC76-75
+palette_ram_hi : entity work.gen_ram
+generic map( dWidth => 8, aWidth => 10)
+port map(
+ clk  => clock_12,
+ we   => palette_hi_we,
+ addr => palette_addr,
+ d    => data_bus,
+ q    => palette_hi_do
+);
 
-	prog2_rom : ENTITY work.joust2_prog2
-		PORT MAP(
-			clk => clock_12,
-			addr => addr_bus(12 DOWNTO 0),
-			data => rom_prog2_do
-		);
-	-- rom17.ic26 + rom15.ic24 
-	bank_a_rom : ENTITY work.joust2_bank_a
-		PORT MAP(
-			clk => clock_12,
-			addr => addr_bus(14 DOWNTO 0),
-			data => rom_bank_a_do
-		);
 
-	-- rom16.ic25 + rom14.ic23 + rom13.ic21 + rom12.ic19 
-	bank_b_rom : ENTITY work.joust2_bank_b
-		PORT MAP(
-			clk => clock_12,
-			addr => addr_bus(14 DOWNTO 0),
-			data => rom_bank_b_do
-		);
+-- map ram - IC40
+map_ram : entity work.gen_ram
+generic map( dWidth => 8, aWidth => 11)
+port map(
+ clk  => clock_12,
+ we   => map_we,
+ addr => map_addr,
+ d    => data_bus,
+ q    => map_do
+);
 
-	-- rom11.ic18 + rom9.ic16 + rom7.ic14 + rom5.ic12 
-	bank_c_rom : ENTITY work.joust2_bank_c
-		PORT MAP(
-			clk => clock_12,
-			addr => addr_bus(14 DOWNTO 0),
-			data => rom_bank_c_do
-		);
+--sram0 : entity work.gen_ram
+--generic map( dWidth => 8, aWidth => 11)
+--port map(
+-- clk  => clock_12,
+-- we   => sram0_we,
+-- addr => addr_bus(10 downto 0),
+-- d    => data_bus,
+-- q    => sram0_do
+--);
 
-	-- rom10.ic17 + rom8.ic15 + rom6.ic13 + rom4.ic11
-	bank_d_rom : ENTITY work.joust2_bank_d
-		PORT MAP(
-			clk => clock_12,
-			addr => addr_bus(14 DOWNTO 0),
-			data => rom_bank_d_do
-		);
+-- cmos ram - IC59
+cmos_ram : entity work.joust2_cmos_ram
+generic map( dWidth => 4, aWidth => 10)
+port map(
+ clk  => clock_12,
+ we   => cmos_we,
+ addr => addr_bus(9 downto 0),
+ d    => data_bus(3 downto 0),
+ q    => cmos_do
+);
 
-	-- rom20.ic57
-	graph1_rom : ENTITY work.joust2_graph1
-		PORT MAP(
-			clk => clock_12,
-			addr => graph_addr,
-			data => graph1_do
-		);
+-- addr bus to video addr decoder - IC60
+video_addr_decoder : entity work.joust2_decoder
+port map(
+ clk  => clock_12,
+ addr => decod_addr,
+ data => decod_do
+);
 
-	-- rom20.ic58
-	graph2_rom : ENTITY work.joust2_graph2
-		PORT MAP(
-			clk => clock_12,
-			addr => graph_addr,
-			data => graph2_do
-		);
+-- gun gray code encoder
+--gun_gray_encoder : entity work.gray_code
+--port map(
+-- clk  => clock_12,
+-- addr => gun_bin_code,
+-- data => gun_gray_code
+--);
 
-	-- rom20.ic41
-	graph3_rom : ENTITY work.joust2_graph3
-		PORT MAP(
-			clk => clock_12,
-			addr => graph_addr,
-			data => graph3_do
-		);
 
-	-- cpu/video wram low 0 - IC102-105
-	cpu_video_ram_l0 : ENTITY work.gen_ram
-		GENERIC MAP(dWidth => 4, aWidth => 14)
-		PORT MAP(
-			clk => clock_12,
-			we => vram_l0_we,
-			addr => vram_addr,
-			d => data_bus(3 DOWNTO 0),
-			q => vram_l0_do
-		);
+-- pia iO1 : ic6 (5C)
+pia_io1 : entity work.pia6821
+port map
+(	
+	clk       	=> pias_clock,            -- rising edge
+	rst       	=> reset,                 -- active high
+	cs        	=> pia_io1_cs,
+	rw        	=> cpu_rw_n,              -- write low
+	addr      	=> addr_bus(1 downto 0),
+	data_in   	=> cpu_do,
+	data_out  	=> pia_io1_do,
+	irqa      	=> pia_io1_irqa,          -- active high
+	irqb      	=> pia_io1_irqb,          -- active high
+	pa_i      	=> pia_io1_pa_i,
+	pa_o        => open,
+	pa_oe       => open,
+	ca1       	=> vcnt_240,
+	ca2_i      	=> '0',
+	ca2_o       => pia_io1_ca2_o,
+	ca2_oe      => open,
+	pb_i      	=> pia_io1_pb_i,
+	pb_o        => open,
+	pb_oe       => open,
+	cb1       	=> cnt_4ms,
+	cb2_i      	=> '0',
+	cb2_o       => open,
+	cb2_oe      => open
+);
 
-	-- cpu/video wram high 0 - IC98-101
-	cpu_video_ram_h0 : ENTITY work.gen_ram
-		GENERIC MAP(dWidth => 4, aWidth => 14)
-		PORT MAP(
-			clk => clock_12,
-			we => vram_h0_we,
-			addr => vram_addr,
-			d => data_bus(7 DOWNTO 4),
-			q => vram_h0_do
-		);
+-- pia iO2 : ic5 (2C)
+pia_rom : entity work.pia6821
+port map
+(	
+	clk       	=> pias_clock,
+	rst       	=> reset,
+	cs        	=> pia_io2_cs,
+	rw        	=> cpu_rw_n,
+	addr      	=> addr_bus(1 downto 0),
+	data_in   	=> cpu_do,
+	data_out  	=> pia_io2_do,
+	irqa      	=> pia_io2_irqa,
+	irqb      	=> pia_io2_irqb,
+	pa_i      	=> pia_io2_pa_i,
+	pa_o        => open,
+	pa_oe       => open,
+	ca1       	=> cnt_4ms, -- '0',
+	ca2_i      	=> '0',
+	ca2_o       => open,
+	ca2_oe      => open,
+	pb_i      	=> (others => '0'),
+	pb_o        => sound_select,
+	pb_oe       => open,
+	cb1       	=> sound_ack,
+	cb2_i      	=> '0',
+	cb2_o       => sound_trig,
+	cb2_oe      => open
+);
 
-	-- cpu/video wram low 1 - IC110-113
-	cpu_video_ram_l1 : ENTITY work.gen_ram
-		GENERIC MAP(dWidth => 4, aWidth => 14)
-		PORT MAP(
-			clk => clock_12,
-			we => vram_l1_we,
-			addr => vram_addr,
-			d => data_bus(3 DOWNTO 0),
-			q => vram_l1_do
-		);
+-- video syncs and blanks
+video_csync <= csync;
 
-	-- cpu/video wram high 1 - IC106-109
-	cpu_video_ram_h1 : ENTITY work.gen_ram
-		GENERIC MAP(dWidth => 4, aWidth => 14)
-		PORT MAP(
-			clk => clock_12,
-			we => vram_h1_we,
-			addr => vram_addr,
-			d => data_bus(7 DOWNTO 4),
-			q => vram_h1_do
-		);
+process(clock_12)
+	constant hcnt_base : integer := 52;
+	variable vsync_cnt : std_logic_vector(3 downto 0);
+begin
 
-	-- cpu/video wram low 2 - IC118-121
-	cpu_video_ram_l2 : ENTITY work.gen_ram
-		GENERIC MAP(dWidth => 4, aWidth => 14)
-		PORT MAP(
-			clk => clock_12,
-			we => vram_l2_we,
-			addr => vram_addr,
-			d => data_bus(3 DOWNTO 0),
-			q => vram_l2_do
-		);
+if rising_edge(clock_12) then
 
-	-- cpu/video wram high 2 - IC115-117
-	cpu_video_ram_h2 : ENTITY work.gen_ram
-		GENERIC MAP(dWidth => 4, aWidth => 14)
-		PORT MAP(
-			clk => clock_12,
-			we => vram_h2_we,
-			addr => vram_addr,
-			d => data_bus(7 DOWNTO 4),
-			q => vram_h2_do
-		);
-	-- palette rams - IC78-77
-	palette_ram_lo : ENTITY work.gen_ram
-		GENERIC MAP(dWidth => 8, aWidth => 10)
-		PORT MAP(
-			clk => clock_12,
-			we => palette_lo_we,
-			addr => palette_addr,
-			d => data_bus,
-			q => palette_lo_do
-		);
+  if    hcnt = hcnt_base+0 then hsync0 <= '0';
+  elsif hcnt = hcnt_base+6 then hsync0 <= '1';
+  end if;
 
-	-- palette rams - IC76-75
-	palette_ram_hi : ENTITY work.gen_ram
-		GENERIC MAP(dWidth => 8, aWidth => 10)
-		PORT MAP(
-			clk => clock_12,
-			we => palette_hi_we,
-			addr => palette_addr,
-			d => data_bus,
-			q => palette_hi_do
-		);
-	-- map ram - IC40
-	map_ram : ENTITY work.gen_ram
-		GENERIC MAP(dWidth => 8, aWidth => 11)
-		PORT MAP(
-			clk => clock_12,
-			we => map_we,
-			addr => map_addr,
-			d => data_bus,
-			q => map_do
-		);
+  if    hcnt = hcnt_base+0     then hsync1 <= '0';
+  elsif hcnt = hcnt_base+3     then hsync1 <= '1';
+  elsif hcnt = hcnt_base+32-64 then hsync1 <= '0';
+  elsif hcnt = hcnt_base+35-64 then hsync1 <= '1';
+  end if;
 
-	--sram0 : entity work.gen_ram
-	--generic map( dWidth => 8, aWidth => 11)
-	--port map(
-	-- clk  => clock_12,
-	-- we   => sram0_we,
-	-- addr => addr_bus(10 downto 0),
-	-- d    => data_bus,
-	-- q    => sram0_do
-	--);
+  if    hcnt = hcnt_base+0        then hsync2 <= '0';
+  elsif hcnt = hcnt_base+32-3-64  then hsync2 <= '1';
+  elsif hcnt = hcnt_base+32-64    then hsync2 <= '0';
+  elsif hcnt = hcnt_base+64-3-128 then hsync2 <= '1';
+  end if;
+  
+  if hcnt = 63 and pixel_cnt = 5 then
+	 if vcnt = 502 then
+	   vsync_cnt := X"0";
+    else
+      if vsync_cnt < X"F" then vsync_cnt := vsync_cnt + '1'; end if;
+    end if;
+  end if;	 
 
-	-- cmos ram - IC59
-	cmos_ram : ENTITY work.joust2_cmos_ram
-		GENERIC MAP(dWidth => 4, aWidth => 10)
-		PORT MAP(
-			clk => clock_12,
-			we => cmos_we,
-			addr => addr_bus(9 DOWNTO 0),
-			d => data_bus(3 DOWNTO 0),
-			q => cmos_do
-		);
+  if    vsync_cnt = 0 then csync <= hsync1;
+  elsif vsync_cnt = 1 then csync <= hsync1;
+  elsif vsync_cnt = 2 then csync <= hsync1;
+  elsif vsync_cnt = 3 then csync <= hsync2;
+  elsif vsync_cnt = 4 then csync <= hsync2;
+  elsif vsync_cnt = 5 then csync <= hsync2;
+  elsif vsync_cnt = 6 then csync <= hsync1;
+  elsif vsync_cnt = 7 then csync <= hsync1;
+  elsif vsync_cnt = 8 then csync <= hsync1;
+  else                     csync <= hsync0;
+  end if;
 
-	-- addr bus to video addr decoder - IC60
-	video_addr_decoder : ENTITY work.joust2_decoder
-		PORT MAP(
-			clk => clock_12,
-			addr => decod_addr,
-			data => decod_do
-		);
+  if    hcnt = 48 and pixel_cnt = 3 then hblank <= '1'; 
+  elsif hcnt =  1 and pixel_cnt = 3 then hblank <= '0';
+  end if;
 
-	-- gun gray code encoder
-	--gun_gray_encoder : entity work.gray_code
-	--port map(
-	-- clk  => clock_12,
-	-- addr => gun_bin_code,
-	-- data => gun_gray_code
-	--);
-	-- pia iO1 : ic6 (5C)
-	pia_io1 : ENTITY work.pia6821
-		PORT MAP
-		(
-			clk => pias_clock, -- rising edge
-			rst => reset, -- active high
-			cs => pia_io1_cs,
-			rw => cpu_rw_n, -- write low
-			addr => addr_bus(1 DOWNTO 0),
-			data_in => cpu_do,
-			data_out => pia_io1_do,
-			irqa => pia_io1_irqa, -- active high
-			irqb => pia_io1_irqb, -- active high
-			pa_i => pia_io1_pa_i,
-			pa_o => OPEN,
-			pa_oe => OPEN,
-			ca1 => vcnt_240,
-			ca2_i => '0',
-			ca2_o => pia_io1_ca2_o,
-			ca2_oe => OPEN,
-			pb_i => pia_io1_pb_i,
-			pb_o => OPEN,
-			pb_oe => OPEN,
-			cb1 => cnt_4ms,
-			cb2_i => '0',
-			cb2_o => OPEN,
-			cb2_oe => OPEN
-		);
+  if    vcnt = 504 then vblank <= '1';
+  elsif vcnt = 262 then vblank <= '0'; 
+  end if;
 
-	-- pia iO2 : ic5 (2C)
-	pia_rom : ENTITY work.pia6821
-		PORT MAP
-		(
-			clk => pias_clock,
-			rst => reset,
-			cs => pia_io2_cs,
-			rw => cpu_rw_n,
-			addr => addr_bus(1 DOWNTO 0),
-			data_in => cpu_do,
-			data_out => pia_io2_do,
-			irqa => pia_io2_irqa,
-			irqb => pia_io2_irqb,
-			pa_i => pia_io2_pa_i,
-			pa_o => OPEN,
-			pa_oe => OPEN,
-			ca1 => cnt_4ms, -- '0',
-			ca2_i => '0',
-			ca2_o => OPEN,
-			ca2_oe => OPEN,
-			pb_i => (OTHERS => '0'),
-			pb_o => sound_select,
-			pb_oe => OPEN,
-			cb1 => sound_ack,
-			cb2_i => '0',
-			cb2_o => sound_trig,
-			cb2_oe => OPEN
-		);
+  -- external sync and blank outputs
+  video_blankn <= not (hblank or vblank);
 
-	-- video syncs and blanks
-	video_csync <= csync;
+  video_hs <= hsync0;
+  
+  if    vsync_cnt = 0 then video_vs <= '0';
+  elsif vsync_cnt = 8 then video_vs <= '1';
+  end if;
 
-	PROCESS (clock_12)
-		CONSTANT hcnt_base : INTEGER := 52;
-		VARIABLE vsync_cnt : STD_LOGIC_VECTOR(3 DOWNTO 0);
-	BEGIN
+end if;
+end process;
 
-		IF rising_edge(clock_12) THEN
+-- sound board - IC4-7-8-27
+joust2_sound_board : entity work.joust2_sound_board
+port map(
+ clock_12   => clock_12,
+ reset      => reset,
+ 
+ sound_select  => sound_select,
+ sound_trig    => sound_trig, 
+ sound_ack     => sound_ack,
+ audio_out     => audio_out,
+ 
+ dbg_cpu_addr  => sound_cpu_addr
+);
 
-			IF hcnt = hcnt_base + 0 THEN
-				hsync0 <= '0';
-			ELSIF hcnt = hcnt_base + 6 THEN
-				hsync0 <= '1';
-			END IF;
-
-			IF hcnt = hcnt_base + 0 THEN
-				hsync1 <= '0';
-			ELSIF hcnt = hcnt_base + 3 THEN
-				hsync1 <= '1';
-			ELSIF hcnt = hcnt_base + 32 - 64 THEN
-				hsync1 <= '0';
-			ELSIF hcnt = hcnt_base + 35 - 64 THEN
-				hsync1 <= '1';
-			END IF;
-
-			IF hcnt = hcnt_base + 0 THEN
-				hsync2 <= '0';
-			ELSIF hcnt = hcnt_base + 32 - 3 - 64 THEN
-				hsync2 <= '1';
-			ELSIF hcnt = hcnt_base + 32 - 64 THEN
-				hsync2 <= '0';
-			ELSIF hcnt = hcnt_base + 64 - 3 - 128 THEN
-				hsync2 <= '1';
-			END IF;
-
-			IF hcnt = 63 AND pixel_cnt = 5 THEN
-				IF vcnt = 502 THEN
-					vsync_cnt := X"0";
-				ELSE
-					IF vsync_cnt < X"F" THEN
-						vsync_cnt := vsync_cnt + '1';
-					END IF;
-				END IF;
-			END IF;
-
-			IF vsync_cnt = 0 THEN
-				csync <= hsync1;
-			ELSIF vsync_cnt = 1 THEN
-				csync <= hsync1;
-			ELSIF vsync_cnt = 2 THEN
-				csync <= hsync1;
-			ELSIF vsync_cnt = 3 THEN
-				csync <= hsync2;
-			ELSIF vsync_cnt = 4 THEN
-				csync <= hsync2;
-			ELSIF vsync_cnt = 5 THEN
-				csync <= hsync2;
-			ELSIF vsync_cnt = 6 THEN
-				csync <= hsync1;
-			ELSIF vsync_cnt = 7 THEN
-				csync <= hsync1;
-			ELSIF vsync_cnt = 8 THEN
-				csync <= hsync1;
-			ELSE
-				csync <= hsync0;
-			END IF;
-
-			IF hcnt = 48 AND pixel_cnt = 3 THEN
-				hblank <= '1';
-			ELSIF hcnt = 1 AND pixel_cnt = 3 THEN
-				hblank <= '0';
-			END IF;
-
-			IF vcnt = 504 THEN
-				vblank <= '1';
-			ELSIF vcnt = 262 THEN
-				vblank <= '0';
-			END IF;
-
-			-- external sync and blank outputs
-			video_blankn <= NOT (hblank OR vblank);
-
-			video_hs <= hsync0;
-
-			IF vsync_cnt = 0 THEN
-				video_vs <= '0';
-			ELSIF vsync_cnt = 8 THEN
-				video_vs <= '1';
-			END IF;
-
-		END IF;
-	END PROCESS;
-
-	-- sound board - IC4-7-8-27
-	joust2_sound_board : ENTITY work.joust2_sound_board
-		PORT MAP(
-			clock_12 => clock_12,
-			reset => reset,
-
-			sound_select => sound_select,
-			sound_trig => sound_trig,
-			sound_ack => sound_ack,
-			audio_out => audio_out,
-
-			dbg_cpu_addr => sound_cpu_addr
-		);
-
-END struct;
+end struct;
