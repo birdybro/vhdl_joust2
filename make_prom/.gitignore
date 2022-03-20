@@ -4,6 +4,6 @@
 
 # Don't ignore committing the following files
 !.gitignore
-!_place_joust2zip_here
+!_unzip_joust2zip_here
 !make_vhdl_prom.exe
 !runme.bat
