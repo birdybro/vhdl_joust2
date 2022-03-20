@@ -1,47 +1,75 @@
-library IEEE;
-use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.numeric_std.ALL;
+LIBRARY IEEE;
+USE IEEE.STD_LOGIC_1164.ALL;
+USE IEEE.numeric_std.ALL;
 
-entity Kbd_Joystick is
-port (
-  Clk           : in std_logic;
-  KbdInt        : in std_logic;
-  KbdScanCode   : in std_logic_vector(7 downto 0);
-  JoyHBCPPFRLDU : out std_logic_vector(9 downto 0);
-  Keys_HUA      : out std_logic_vector(2 downto 0)
-);
-end Kbd_Joystick;
+ENTITY Kbd_Joystick IS
+  PORT (
+    Clk : IN STD_LOGIC;
+    KbdInt : IN STD_LOGIC;
+    KbdScanCode : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
+    JoyHBCPPFRLDU : OUT STD_LOGIC_VECTOR(9 DOWNTO 0);
+    Keys_HUA : OUT STD_LOGIC_VECTOR(2 DOWNTO 0)
+  );
+END Kbd_Joystick;
 
-architecture Behavioral of Kbd_Joystick is
+ARCHITECTURE Behavioral OF Kbd_Joystick IS
 
-signal IsReleased : std_logic;
+  SIGNAL IsReleased : STD_LOGIC;
 
-begin 
+BEGIN
 
-process(Clk)
-begin
-  if rising_edge(Clk) then
-  
-    if KbdInt = '1' then
-      if KbdScanCode = "11110000" then IsReleased <= '1'; else IsReleased <= '0'; end if; 
-      if KbdScanCode = "01110101" then JoyHBCPPFRLDU(0) <= not(IsReleased); end if; -- up    arrow : 0x75
-      if KbdScanCode = "01110010" then JoyHBCPPFRLDU(1) <= not(IsReleased); end if; -- down  arrow : 0x72
-      if KbdScanCode = "01101011" then JoyHBCPPFRLDU(2) <= not(IsReleased); end if; -- left  arrow : 0x6B
-      if KbdScanCode = "01110100" then JoyHBCPPFRLDU(3) <= not(IsReleased); end if; -- right arrow : 0x74
-      if KbdScanCode = "00101001" then JoyHBCPPFRLDU(4) <= not(IsReleased); end if; -- space : 0x29
-      if KbdScanCode = "00000101" then JoyHBCPPFRLDU(5) <= not(IsReleased); end if; -- F1 : 0x05
-      if KbdScanCode = "00000110" then JoyHBCPPFRLDU(6) <= not(IsReleased); end if; -- F2 : 0x06
-      if KbdScanCode = "00000100" then JoyHBCPPFRLDU(7) <= not(IsReleased); end if; -- F3 : 0x04
-      if KbdScanCode = "00010100" then JoyHBCPPFRLDU(8) <= not(IsReleased); end if; -- ctrl : 0x14
-      if KbdScanCode = "00011101" then JoyHBCPPFRLDU(9) <= not(IsReleased); end if; -- W    : 0x1D
-      if KbdScanCode = "00011100" then Keys_HUA(0)      <= not(IsReleased); end if; -- A    : 0x1C
-      if KbdScanCode = "00111100" then Keys_HUA(1)      <= not(IsReleased); end if; -- U    : 0x3C			
-      if KbdScanCode = "00110011" then Keys_HUA(2)      <= not(IsReleased); end if; -- H    : 0x33			
-    end if;
- 
-  end if;
-end process;
+  PROCESS (Clk)
+  BEGIN
+    IF rising_edge(Clk) THEN
 
-end Behavioral;
+      IF KbdInt = '1' THEN
+        IF KbdScanCode = "11110000" THEN
+          IsReleased <= '1';
+        ELSE
+          IsReleased <= '0';
+        END IF;
+        IF KbdScanCode = "01110101" THEN
+          JoyHBCPPFRLDU(0) <= NOT(IsReleased);
+        END IF; -- up    arrow : 0x75
+        IF KbdScanCode = "01110010" THEN
+          JoyHBCPPFRLDU(1) <= NOT(IsReleased);
+        END IF; -- down  arrow : 0x72
+        IF KbdScanCode = "01101011" THEN
+          JoyHBCPPFRLDU(2) <= NOT(IsReleased);
+        END IF; -- left  arrow : 0x6B
+        IF KbdScanCode = "01110100" THEN
+          JoyHBCPPFRLDU(3) <= NOT(IsReleased);
+        END IF; -- right arrow : 0x74
+        IF KbdScanCode = "00101001" THEN
+          JoyHBCPPFRLDU(4) <= NOT(IsReleased);
+        END IF; -- space : 0x29
+        IF KbdScanCode = "00000101" THEN
+          JoyHBCPPFRLDU(5) <= NOT(IsReleased);
+        END IF; -- F1 : 0x05
+        IF KbdScanCode = "00000110" THEN
+          JoyHBCPPFRLDU(6) <= NOT(IsReleased);
+        END IF; -- F2 : 0x06
+        IF KbdScanCode = "00000100" THEN
+          JoyHBCPPFRLDU(7) <= NOT(IsReleased);
+        END IF; -- F3 : 0x04
+        IF KbdScanCode = "00010100" THEN
+          JoyHBCPPFRLDU(8) <= NOT(IsReleased);
+        END IF; -- ctrl : 0x14
+        IF KbdScanCode = "00011101" THEN
+          JoyHBCPPFRLDU(9) <= NOT(IsReleased);
+        END IF; -- W    : 0x1D
+        IF KbdScanCode = "00011100" THEN
+          Keys_HUA(0) <= NOT(IsReleased);
+        END IF; -- A    : 0x1C
+        IF KbdScanCode = "00111100" THEN
+          Keys_HUA(1) <= NOT(IsReleased);
+        END IF; -- U    : 0x3C			
+        IF KbdScanCode = "00110011" THEN
+          Keys_HUA(2) <= NOT(IsReleased);
+        END IF; -- H    : 0x33			
+      END IF;
 
+    END IF;
+  END PROCESS;
 
+END Behavioral;

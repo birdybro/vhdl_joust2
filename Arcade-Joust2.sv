@@ -326,6 +326,8 @@ assign AUDIO_L = audio;
 assign AUDIO_R = AUDIO_L;
 assign AUDIO_S = 0;
 
+wire blankn = ~(hblank | vblank);
+
 williams2 williams2
 (
 	.clock_12(clk_12),
@@ -340,7 +342,7 @@ williams2 williams2
 	.video_b(b), // [3:0]
 	.video_i(),  // [3:0]
 	.video_csync(),
-	.video_blankn(),
+	.video_blankn(blankn),
 	.video_hs(hs),
 	.video_vs(vs),
 

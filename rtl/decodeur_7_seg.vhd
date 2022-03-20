@@ -1,35 +1,33 @@
-library ieee;
-use ieee.std_logic_1164.all,ieee.numeric_std.all;
+LIBRARY ieee;
+USE ieee.std_logic_1164.ALL, ieee.numeric_std.ALL;
+ENTITY decodeur_7_seg IS
+  PORT (
+    di : IN STD_LOGIC_VECTOR(3 DOWNTO 0);
+    do : OUT STD_LOGIC_VECTOR(7 DOWNTO 0)
+  );
+END decodeur_7_seg;
 
+ARCHITECTURE struct OF decodeur_7_seg IS
 
-entity decodeur_7_seg is
-port(
-  di : in std_logic_vector(3 downto 0);
-  do : out std_logic_vector(7 downto 0)
-);
-end decodeur_7_seg;
+BEGIN
 
-architecture struct of decodeur_7_seg is
+  WITH di SELECT
+    do <=
+    "11000000" WHEN "0000",
+    "11111001" WHEN "0001",
+    "10100100" WHEN "0010",
+    "10110000" WHEN "0011",
+    "10011001" WHEN "0100",
+    "10010010" WHEN "0101",
+    "10000010" WHEN "0110",
+    "11111000" WHEN "0111",
+    "10000000" WHEN "1000",
+    "10010000" WHEN "1001",
+    "10001000" WHEN "1010",
+    "10000011" WHEN "1011",
+    "11000110" WHEN "1100",
+    "10100001" WHEN "1101",
+    "10000110" WHEN "1110",
+    "10001110" WHEN OTHERS;
 
-begin
-
-with di select
-  do <=
-    "11000000" when "0000",
-    "11111001" when "0001",
-    "10100100" when "0010",
-    "10110000" when "0011",
-    "10011001" when "0100",
-    "10010010" when "0101",
-    "10000010" when "0110",
-    "11111000" when "0111",
-    "10000000" when "1000",
-    "10010000" when "1001",
-    "10001000" when "1010",
-    "10000011" when "1011",
-    "11000110" when "1100",
-    "10100001" when "1101",
-    "10000110" when "1110",
-    "10001110" when others;
-
-end architecture;
+END ARCHITECTURE;
