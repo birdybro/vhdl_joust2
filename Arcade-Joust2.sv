@@ -311,7 +311,7 @@ arcade_video #(260,12) arcade_video
 (
 	.*,
 
-	.clk_video(clk_12),
+	.clk_video(clk_48),
 	.RGB_in({r,r,r,r,g,g,g,g,b,b,b,b}),
 
 	.HBlank(hblank),
