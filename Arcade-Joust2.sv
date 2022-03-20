@@ -180,15 +180,16 @@ assign {SDRAM_DQ, SDRAM_A, SDRAM_BA, SDRAM_CLK, SDRAM_CKE, SDRAM_DQML, SDRAM_DQM
 assign {DDRAM_CLK, DDRAM_BURSTCNT, DDRAM_ADDR, DDRAM_DIN, DDRAM_BE, DDRAM_RD, DDRAM_WE} = '0;  
 
 assign VGA_F1 = 0;
-assign VGA_SCALER = 0;
+assign VGA_SCALER  = 0;
 assign HDMI_FREEZE = 0;
 
-assign AUDIO_S = 0;
+assign AUDIO_S   = 0;
 assign AUDIO_MIX = 0;
 
-assign LED_DISK = 0;
+assign LED_USER  = ioctl_download;
+assign LED_DISK  = 0;
 assign LED_POWER = 0;
-assign BUTTONS = 0;
+assign BUTTONS   = 0;
 
 //////////////////////////////////////////////////////////////////
 
@@ -196,14 +197,15 @@ assign LED_USER = 0;
 
 wire [1:0] ar = status[9:8];
 
-assign VIDEO_ARX = (!ar) ? 12'd4 : (ar - 1'd1);
-assign VIDEO_ARY = (!ar) ? 12'd3 : 12'd0;
+assign VIDEO_ARX = (!ar) ? (status[2] ? 8'd4 : 8'd3) : (ar - 1'd1);
+assign VIDEO_ARY = (!ar) ? (status[2] ? 8'd3 : 8'd4) : 12'd0;
 
 `include "build_id.v" 
 localparam CONF_STR = {
 	"A.JOUST2;;",
 	"-;",
 	"O89,Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
+	"H1H0O2,Orientation,Vert,Horz;",
 	"O35,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
 	"-;",
 	"R0,Reset;",
@@ -212,7 +214,7 @@ localparam CONF_STR = {
 	"V,v",`BUILD_DATE 
 };
 
-wire forced_scandoubler;
+wire        forced_scandoubler;
 wire        direct_video;
 
 wire        ioctl_download;
@@ -295,9 +297,7 @@ wire m_coin    = joy[7];
 
 wire hblank, vblank;
 wire hs, vs;
-wire [3:0] r;
-wire [3:0] g;
-wire [3:0] b;
+wire [3:0] r,g,b;
 
 reg ce_pix;
 always @(posedge clk_48) begin
