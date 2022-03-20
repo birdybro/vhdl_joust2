@@ -321,8 +321,8 @@ williams2 williams2
 	.video_g(g), // [3:0]
 	.video_b(b), // [3:0]
 	.video_i(),  // [3:0]
-	.video_csync(),
-	.video_blankn(1),
+	.video_hblank(),
+	.video_vblank(),
 	.video_hs(hs),
 	.video_vs(vs),
 
