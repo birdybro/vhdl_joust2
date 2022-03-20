@@ -307,7 +307,7 @@ always @(posedge clk_48) begin
 	ce_pix <= !div;
 end
 
-arcade_video #(260,12) arcade_video
+arcade_video #(276,12) arcade_video
 (
 	.*,
 
