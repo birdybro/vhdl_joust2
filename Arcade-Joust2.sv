@@ -272,7 +272,7 @@ pll pll
 	.refclk(CLK_50M),
 	.rst(0),
 	.outclk_0(clk_48),
-	.outclk_1(clk_12),
+	.outclk_1(clk_12)
 );
 
 wire reset = RESET | status[0] | buttons[1];
@@ -322,7 +322,7 @@ williams2 williams2
 	.video_b(b), // [3:0]
 	.video_i(),  // [3:0]
 	.video_csync(),
-	.video_blankn(),
+	.video_blankn(1),
 	.video_hs(hs),
 	.video_vs(vs),
 
