@@ -183,7 +183,6 @@ assign VGA_F1 = 0;
 assign VGA_SCALER  = 0;
 assign HDMI_FREEZE = 0;
 
-assign AUDIO_S   = 0;
 assign AUDIO_MIX = 0;
 
 assign LED_USER  = ioctl_download;
@@ -327,8 +326,9 @@ arcade_video #(276,12) arcade_video
 );
 
 wire [7:0] audio;
-assign AUDIO_L = audio;
+assign AUDIO_L = 8'b0 : audio;
 assign AUDIO_R = AUDIO_L;
+assign AUDIO_S = 0;
 
 williams2 williams2
 (
