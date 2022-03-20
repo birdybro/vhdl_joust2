@@ -244,10 +244,10 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
 
 	.buttons(buttons),
 	.status(status),
-	.status_menumask(direct_video),
+	.status_menumask(),
 	.forced_scandoubler(forced_scandoubler),
-	.gamma_bus(gamma_bus),
-	.direct_video(direct_video),
+	.gamma_bus(),
+	.direct_video(),
 
 	.ioctl_download(ioctl_download),
 	.ioctl_upload(ioctl_upload),
