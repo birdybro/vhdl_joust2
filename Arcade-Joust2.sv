@@ -204,8 +204,6 @@ localparam CONF_STR = {
 	"A.JOUST2;;",
 	"-;",
 	"O89,Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
-	"H1H0O2,Orientation,Vert,Horz;",
-	"O35,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
 	"-;",
 	"R0,Reset;",
 	"J1,Flap,Start 1P,Start 2P,Coin;",
@@ -242,10 +240,10 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
 
 	.buttons(buttons),
 	.status(status),
-	.status_menumask(),
+	.status_menumask(direct_video),
 	.forced_scandoubler(forced_scandoubler),
-	.gamma_bus(),
-	.direct_video(),
+	.gamma_bus(gamma_bus),
+	.direct_video(direct_video),
 
 	.ioctl_download(ioctl_download),
 	.ioctl_upload(ioctl_upload),
@@ -303,6 +301,21 @@ always @(posedge clk_48) begin
 	ce_pix <= !div;
 end
 
+arcade_video #(256,12) arcade_video
+(
+        .*,
+
+        .clk_video(clk_48),
+
+        .RGB_in(rgb_out),
+        .HBlank(hblank),
+        .VBlank(vblank),
+        .HSync(~hs),
+        .VSync(~vs),
+
+        .fx(status[5:3])
+);
+
 wire [7:0] audio;
 assign AUDIO_L = audio;
 assign AUDIO_R = AUDIO_L;
@@ -321,8 +334,8 @@ williams2 williams2
 	.video_g(g), // [3:0]
 	.video_b(b), // [3:0]
 	.video_i(),  // [3:0]
-	.video_hblank(),
-	.video_vblank(),
+	.video_hblank(hblank),
+	.video_vblank(vblank),
 	.video_hs(hs),
 	.video_vs(vs),
 
