@@ -207,6 +207,8 @@ localparam CONF_STR = {
 	"H1H0O2,Orientation,Vert,Horz;",
 	"O35,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
 	"-;",
+	"OG,Color Mode,Bright,Dark;",
+	"-;",
 	"R0,Reset;",
 	"J1,Flap,Start 1P,Start 2P,Coin;",
 	"jn,A,Start,Select,R;",
@@ -255,7 +257,6 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
 	.ioctl_dout(ioctl_dout),
 	.ioctl_din(ioctl_din),
 	.ioctl_index(ioctl_index),
-	.ioctl_wait(ioctl_wait),
 
 	.joystick_0(joystick_0),
 	.joystick_1(joystick_1)
@@ -266,7 +267,7 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
 wire clk_sys;
 wire pll_locked;
 wire clk_48,clk_12;
-assign clk_sys=clk_48;
+assign clk_sys=clk_12;
 
 pll pll
 (
@@ -274,7 +275,6 @@ pll pll
 	.rst(0),
 	.outclk_0(clk_48),
 	.outclk_1(clk_12),
-	.locked(pll_locked)
 );
 
 wire reset = RESET | status[0] | buttons[1];
@@ -308,13 +308,14 @@ end
 
 wire no_rotate = status[2] | direct_video;
 wire rotate_ccw = 0;
+screen_rotate screen_rotate (.*);
 
-arcade_video #(276,12) arcade_video
+arcade_video #(276,12,1) arcade_video
 (
 	.*,
 
 	.clk_video(clk_48),
-	.RGB_in({r,r,r,r,g,g,g,g,b,b,b,b}),
+	.RGB_in(rgb_out),
 
 	.HBlank(hblank),
 	.VBlank(vblank),
@@ -336,14 +337,14 @@ williams2 williams2
 
 	.rom_addr(ioctl_addr), // [16:0]
 	.rom_do(ioctl_dout), // [7:0]
-	.rom_rd(ioctl_download),
+	.rom_rd(ioctl_din),
 
 	.video_r(r), // [3:0]
 	.video_g(g), // [3:0]
 	.video_b(b), // [3:0]
 	.video_i(),  // [3:0]
 	.video_csync(),
-	.video_blankn(VGA_DE),
+	.video_blankn(),
 	.video_hs(hs),
 	.video_vs(vs),
 
