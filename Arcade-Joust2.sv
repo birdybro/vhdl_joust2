@@ -207,8 +207,6 @@ localparam CONF_STR = {
 	"H1H0O2,Orientation,Vert,Horz;",
 	"O35,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
 	"-;",
-	"OG,Color Mode,Bright,Dark;",
-	"-;",
 	"R0,Reset;",
 	"J1,Flap,Start 1P,Start 2P,Coin;",
 	"jn,A,Start,Select,R;",
