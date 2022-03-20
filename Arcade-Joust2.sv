@@ -343,7 +343,7 @@ williams2 williams2
 	.video_b(b), // [3:0]
 	.video_i(),  // [3:0]
 	.video_csync(),
-	.video_blankn(),
+	.video_blankn(VGA_DE),
 	.video_hs(hs),
 	.video_vs(vs),
 
