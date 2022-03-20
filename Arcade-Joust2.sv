@@ -296,6 +296,13 @@ wire hblank, vblank;
 wire hs, vs;
 wire [3:0] r,g,b;
 
+reg ce_pix;
+always @(posedge clk_48) begin
+	reg [2:0] div;
+	div <= div + 1'd1;
+	ce_pix <= !div;
+end
+
 wire [7:0] audio;
 assign AUDIO_L = audio;
 assign AUDIO_R = AUDIO_L;
