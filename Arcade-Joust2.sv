@@ -185,7 +185,7 @@ assign HDMI_FREEZE = 0;
 
 assign AUDIO_MIX = 0;
 
-assign LED_USER  = ioctl_download;
+assign LED_USER  = 0;
 assign LED_DISK  = 0;
 assign LED_POWER = 0;
 assign BUTTONS   = 0;
