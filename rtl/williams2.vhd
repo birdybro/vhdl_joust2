@@ -463,8 +463,8 @@ cnt_4ms   <= vcnt(5);
 --cnt_4ms_o <= vcnt(5);
 
 -- pia rom irqs to cpu
-cpu_irq  <= pia_io2_irqa or pia_io2_irqb;
---cpu_irq  <= pia_io1_irqa or pia_io1_irqb or pia_io2_irqa or pia_io2_irqb;
+-- cpu_irq  <= pia_io2_irqa or pia_io2_irqb;
+cpu_irq  <= pia_io1_irqa or pia_io1_irqb or pia_io2_irqa or pia_io2_irqb;
 
 -- chip select/we
 we_bus  <= '1' when (cpu_rw_n = '0' or blit_rw_n = '0') and en_pixel = '1' and en_cpu = '1' else '0';
