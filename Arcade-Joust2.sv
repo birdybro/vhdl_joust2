@@ -326,10 +326,6 @@ williams2 williams2
 	.clock_12(clk_12),
 	.reset(reset),
 
-	.rom_addr(ioctl_addr), // [16:0]
-	.rom_do(ioctl_dout), // [7:0]
-	.rom_rd(ioctl_din),
-
 	.video_r(r), // [3:0]
 	.video_g(g), // [3:0]
 	.video_b(b), // [3:0]
