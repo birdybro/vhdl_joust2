@@ -1,0 +1,6 @@
+# Ignore everything in here to avoid copyrighted rom uploads
+*
+*/
+
+# Don't ignore committing the following files
+!.gitignore

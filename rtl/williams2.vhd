@@ -524,10 +524,10 @@ data_bus_low <=
 	palette_lo_do           when color_cs = '1' and addr_bus(0) = '0' else
 	palette_hi_do           when color_cs = '1' and addr_bus(0) = '1' else	
 	rom_do                  when rom_bank_cs = '1' else
---	rom_bank_a_do           when rom_bank_cs = '1' and (page = "010"                ) else
---	rom_bank_b_do           when rom_bank_cs = '1' and (page = "110"                ) else
---	rom_bank_c_do           when rom_bank_cs = '1' and (page = "001" or page = "011") else
---	rom_bank_d_do           when rom_bank_cs = '1' and (page = "100" or page = "101") else
+	rom_bank_a_do           when rom_bank_cs = '1' and (page = "010"                ) else
+	rom_bank_b_do           when rom_bank_cs = '1' and (page = "110"                ) else
+	rom_bank_c_do           when rom_bank_cs = '1' and (page = "001" or page = "011") else
+	rom_bank_d_do           when rom_bank_cs = '1' and (page = "100" or page = "101") else
 	vram_h0_do & vram_l0_do when decod_do(7 downto 6)  = "00" else
 	vram_h1_do & vram_l1_do when decod_do(7 downto 6)  = "01" else
 	vram_h2_do & vram_l2_do when decod_do(7 downto 6)  = "10" else
